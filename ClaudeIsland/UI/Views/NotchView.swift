@@ -97,17 +97,17 @@ struct NotchView: View {
         let project = session.projectName
         switch session.phase {
         case .processing:
-            let status = session.lastToolName ?? "working..."
+            let status = session.lastToolName ?? "工作中..."
             return (project, status)
         case .waitingForApproval:
-            let status = session.pendingToolName.map { "approve \($0)?" } ?? "needs approval"
+            let status = session.pendingToolName.map { "审批 \($0)?" } ?? "需要审批"
             return (project, status)
         case .waitingForInput:
-            return (project, "done")
+            return (project, "完成")
         case .compacting:
-            return (project, "compacting...")
+            return (project, "压缩中...")
         case .idle:
-            return (project, "idle")
+            return (project, "空闲")
         case .ended:
             return nil
         }

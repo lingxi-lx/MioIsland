@@ -233,7 +233,7 @@ struct ChatView: View {
             ProgressView()
                 .progressViewStyle(CircularProgressViewStyle(tint: .white.opacity(0.4)))
                 .scaleEffect(0.8)
-            Text("Loading messages...")
+            Text("加载消息中...")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.white.opacity(0.4))
         }
@@ -247,7 +247,7 @@ struct ChatView: View {
             Image(systemName: "bubble.left.and.bubble.right")
                 .font(.system(size: 24))
                 .foregroundColor(.white.opacity(0.2))
-            Text("No messages yet")
+            Text("暂无消息")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.white.opacity(0.4))
         }
@@ -349,7 +349,7 @@ struct ChatView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "terminal")
                         .font(.system(size: 14, weight: .medium))
-                    Text("Go to Terminal")
+                    Text("前往终端")
                         .font(.system(size: 13, weight: .medium))
                 }
                 .foregroundColor(.white)
@@ -554,7 +554,7 @@ struct AssistantMessageView: View {
 // MARK: - Processing Indicator
 
 struct ProcessingIndicatorView: View {
-    private let baseTexts = ["Processing", "Working"]
+    private let baseTexts = ["处理中", "工作中"]
     private let color = Color(red: 0.85, green: 0.47, blue: 0.34) // Claude orange
     private let baseText: String
 
@@ -667,7 +667,7 @@ struct ToolCallView: View {
                     .fixedSize()
 
                 if tool.name == "Task" && !tool.subagentTools.isEmpty {
-                    let taskDesc = tool.input["description"] ?? "Running agent..."
+                    let taskDesc = tool.input["description"] ?? "运行代理中..."
                     Text("\(taskDesc) (\(tool.subagentTools.count) tools)")
                         .font(.system(size: 11))
                         .foregroundColor(textColor.opacity(0.7))
@@ -675,7 +675,7 @@ struct ToolCallView: View {
                         .truncationMode(.tail)
                 } else if tool.name == "AgentOutputTool", let desc = agentDescription {
                     let blocking = tool.input["block"] == "true"
-                    Text(blocking ? "Waiting: \(desc)" : desc)
+                    Text(blocking ? "等待中: \(desc)" : desc)
                         .font(.system(size: 11))
                         .foregroundColor(textColor.opacity(0.7))
                         .lineLimit(1)
@@ -779,7 +779,7 @@ struct SubagentToolsList: View {
         VStack(alignment: .leading, spacing: 2) {
             // Show count of older hidden tools at top
             if hiddenCount > 0 {
-                Text("+\(hiddenCount) more tool uses")
+                Text("还有 \(hiddenCount) 个工具调用")
                     .font(.system(size: 10))
                     .foregroundColor(.white.opacity(0.4))
             }
@@ -809,7 +809,7 @@ struct SubagentToolRow: View {
     /// Get status text using the same logic as regular tools
     private var statusText: String {
         if tool.status == .interrupted {
-            return "Interrupted"
+            return "已中断"
         } else if tool.status == .running {
             return ToolStatusDisplay.running(for: tool.name, input: tool.input).text
         } else {
@@ -863,7 +863,7 @@ struct SubagentToolsSummary: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Subagent used \(tools.count) tools:")
+            Text("子代理使用了 \(tools.count) 个工具：")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.white.opacity(0.5))
 
@@ -942,7 +942,7 @@ struct ThinkingView: View {
 struct InterruptedMessageView: View {
     var body: some View {
         HStack {
-            Text("Interrupted")
+            Text("已中断")
                 .font(.system(size: 13))
                 .foregroundColor(.red)
             Spacer()
@@ -967,7 +967,7 @@ struct ChatInteractivePromptBar: View {
                 Text(MCPToolFormatter.formatToolName("AskUserQuestion"))
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(TerminalColors.amber)
-                Text("Claude Code needs your input")
+                Text("Claude Code 需要你的输入")
                     .font(.system(size: 11))
                     .foregroundColor(.white.opacity(0.5))
                     .lineLimit(1)
@@ -984,7 +984,7 @@ struct ChatInteractivePromptBar: View {
                 HStack(spacing: 4) {
                     Image(systemName: "terminal")
                         .font(.system(size: 11, weight: .medium))
-                    Text("Terminal")
+                    Text("终端")
                         .font(.system(size: 13, weight: .medium))
                 }
                 .foregroundColor(.black)
@@ -1090,7 +1090,7 @@ struct ChatApprovalBar: View {
                 Circle()
                     .fill(Color(red: 1.0, green: 0.6, blue: 0.0))
                     .frame(width: 8, height: 8)
-                Text("Permission Request")
+                Text("权限请求")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(Color(red: 1.0, green: 0.7, blue: 0.2))
             }
@@ -1162,7 +1162,7 @@ struct ChatApprovalBar: View {
                     onDeny()
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Deny")
+                        Text("拒绝")
                             .font(.system(size: 13, weight: .medium))
                         Text("\u{2318}N")
                             .font(.system(size: 11, weight: .regular))
@@ -1185,7 +1185,7 @@ struct ChatApprovalBar: View {
                     onApprove()
                 } label: {
                     HStack(spacing: 4) {
-                        Text("Allow")
+                        Text("允许")
                             .font(.system(size: 13, weight: .bold))
                         Text("\u{2318}Y")
                             .font(.system(size: 11, weight: .regular))
@@ -1263,7 +1263,7 @@ struct NewMessagesIndicator: View {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 10, weight: .bold))
 
-                Text(count == 1 ? "1 new message" : "\(count) new messages")
+                Text("\(count) 条新消息")
                     .font(.system(size: 12, weight: .medium))
             }
             .foregroundColor(.white)

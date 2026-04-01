@@ -25,7 +25,7 @@ struct NotchMenuView: View {
             // Back button
             MenuRow(
                 icon: "chevron.left",
-                label: "Back"
+                label: "返回"
             ) {
                 viewModel.toggleMenu()
             }
@@ -40,7 +40,7 @@ struct NotchMenuView: View {
 
             MenuToggleRow(
                 icon: "folder",
-                label: "Group by Project",
+                label: "按项目分组",
                 isOn: showGrouped
             ) {
                 showGrouped.toggle()
@@ -53,7 +53,7 @@ struct NotchMenuView: View {
             // System settings
             MenuToggleRow(
                 icon: "power",
-                label: "Launch at Login",
+                label: "开机启动",
                 isOn: launchAtLogin
             ) {
                 do {
@@ -71,7 +71,7 @@ struct NotchMenuView: View {
 
             MenuToggleRow(
                 icon: "arrow.triangle.2.circlepath",
-                label: "Hooks",
+                label: "钩子",
                 isOn: hooksInstalled
             ) {
                 if hooksInstalled {
@@ -94,7 +94,7 @@ struct NotchMenuView: View {
 
             MenuRow(
                 icon: "xmark.circle",
-                label: "Quit",
+                label: "退出",
                 isDestructive: true
             ) {
                 NSApplication.shared.terminate(nil)
@@ -136,7 +136,7 @@ struct VersionRow: View {
                 .foregroundColor(.white.opacity(0.7))
                 .frame(width: 16)
 
-            Text("Version")
+            Text("版本")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(.white.opacity(0.7))
 
@@ -172,7 +172,7 @@ struct AccessibilityRow: View {
                 .foregroundColor(textColor)
                 .frame(width: 16)
 
-            Text("Accessibility")
+            Text("辅助功能")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(textColor)
 
@@ -183,12 +183,12 @@ struct AccessibilityRow: View {
                     .fill(TerminalColors.green)
                     .frame(width: 6, height: 6)
 
-                Text("On")
+                Text("已开启")
                     .font(.system(size: 11))
                     .foregroundColor(.white.opacity(0.4))
             } else {
                 Button(action: openAccessibilitySettings) {
-                    Text("Enable")
+                    Text("启用")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.black)
                         .padding(.horizontal, 10)
@@ -291,7 +291,7 @@ struct MenuToggleRow: View {
                     .fill(isOn ? TerminalColors.green : Color.white.opacity(0.3))
                     .frame(width: 6, height: 6)
 
-                Text(isOn ? "On" : "Off")
+                Text(isOn ? "开" : "关")
                     .font(.system(size: 11))
                     .foregroundColor(.white.opacity(0.4))
             }

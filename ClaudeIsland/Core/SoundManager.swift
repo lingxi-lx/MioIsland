@@ -26,14 +26,14 @@ enum SoundEvent: String, CaseIterable {
     /// Human-readable label for display in settings UI
     var displayName: String {
         switch self {
-        case .sessionStart: return "Session Start"
-        case .processingBegins: return "Processing Begins"
-        case .needsApproval: return "Needs Approval"
-        case .approvalGranted: return "Approval Granted"
-        case .approvalDenied: return "Approval Denied"
-        case .sessionComplete: return "Session Complete"
-        case .error: return "Error"
-        case .compacting: return "Context Compacting"
+        case .sessionStart: return "会话开始"
+        case .processingBegins: return "开始处理"
+        case .needsApproval: return "需要审批"
+        case .approvalGranted: return "已批准"
+        case .approvalDenied: return "已拒绝"
+        case .sessionComplete: return "会话完成"
+        case .error: return "错误"
+        case .compacting: return "上下文压缩"
         }
     }
 

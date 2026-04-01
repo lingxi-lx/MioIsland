@@ -15,14 +15,14 @@ struct SoundSettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             // MARK: - Header
 
-            Text("Sound Settings")
+            Text("声音设置")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.white)
 
             // MARK: - Global Mute
 
             Toggle(isOn: $soundManager.globalMute) {
-                Label("Mute All Sounds", systemImage: soundManager.globalMute ? "speaker.slash.fill" : "speaker.fill")
+                Label("全部静音", systemImage: soundManager.globalMute ? "speaker.slash.fill" : "speaker.fill")
                     .font(.system(size: 12))
                     .foregroundColor(.white)
             }
@@ -51,7 +51,7 @@ struct SoundSettingsView: View {
 
             // MARK: - Per-Event Toggles
 
-            Text("Event Sounds")
+            Text("事件声音")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.white.opacity(0.6))
 
@@ -101,7 +101,7 @@ private struct SoundEventRow: View {
                     .foregroundColor(.white.opacity(0.7))
             }
             .buttonStyle(.plain)
-            .help("Preview \(event.displayName) sound")
+            .help("预览 \(event.displayName) 声音")
         }
         .onAppear {
             isEnabled = soundManager.isEnabled(event)
