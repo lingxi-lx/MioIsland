@@ -401,20 +401,11 @@ struct InstanceRow: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
-                // Active: cat animation, Idle: glow dot
-                if session.phase == .processing || session.phase == .compacting || session.phase.isWaitingForApproval {
-                    PixelCharacterView(state: session.phase.animationState)
-                        .scaleEffect(0.28)
-                        .frame(width: 16, height: 16)
-                        .padding(.top, 2)
-                } else {
-                    Circle()
-                        .fill(accentColor)
-                        .frame(width: 8, height: 8)
-                        .shadow(color: accentColor.opacity(0.6), radius: 4)
-                        .shadow(color: accentColor.opacity(0.3), radius: 8)
-                        .padding(.top, 5)
-                }
+                // Cat face for all states
+                PixelCharacterView(state: session.phase.animationState)
+                    .scaleEffect(0.28)
+                    .frame(width: 16, height: 16)
+                    .padding(.top, 2)
 
                 // Content
                 VStack(alignment: .leading, spacing: 2) {

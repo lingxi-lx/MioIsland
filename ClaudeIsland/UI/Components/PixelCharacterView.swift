@@ -204,14 +204,25 @@ struct PixelCharacterView: View {
         px(&context, 8, 6, Self.RD, 0.7); px(&context, 10, 6, Self.RD, 0.7)
     }
 
-    // MARK: - DONE: ^_^ eyes (green), static
+    // MARK: - DONE: heart eyes (green) + green tint on body
 
     private func drawDoneEyes(context: inout GraphicsContext) {
-        // Left ^_^ eye
-        px(&context, 2, 5, Self.GN, 0.6); px(&context, 3, 4, Self.GN); px(&context, 4, 5, Self.GN, 0.6)
+        // Green tint on the whole cat body (overlay)
+        for y in 0..<Self.gridH {
+            for x in 0..<Self.gridW {
+                px(&context, x, y, Self.GN, 0.08)
+            }
+        }
 
-        // Right ^_^ eye
-        px(&context, 8, 5, Self.GN, 0.6); px(&context, 9, 4, Self.GN); px(&context, 10, 5, Self.GN, 0.6)
+        // Left heart eye ♥
+        px(&context, 2, 5, Self.GN); px(&context, 4, 5, Self.GN)  // top bumps
+        px(&context, 2, 4, Self.GN, 0.6); px(&context, 4, 4, Self.GN, 0.6)  // upper bumps
+        px(&context, 3, 6, Self.GN)  // bottom point
+
+        // Right heart eye ♥
+        px(&context, 8, 5, Self.GN); px(&context, 10, 5, Self.GN)
+        px(&context, 8, 4, Self.GN, 0.6); px(&context, 10, 4, Self.GN, 0.6)
+        px(&context, 9, 6, Self.GN)
     }
 }
 
