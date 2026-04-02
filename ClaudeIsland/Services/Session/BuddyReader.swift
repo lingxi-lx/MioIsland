@@ -148,7 +148,7 @@ class BuddyReader: ObservableObject {
         let bones: Bones
         if let cached = Self.readCachedBones() {
             bones = cached
-        } else if let bunBones = Self.computeBonesViaBun(userId: userId, salt: salt) {
+        } else if let bunBones = Self.computeBonesViaNode(userId: userId, salt: salt) {
             bones = bunBones
         } else {
             bones = Self.computeBones(userId: userId, salt: salt)
@@ -264,32 +264,50 @@ class BuddyReader: ObservableObject {
         )
     }
 
-    // MARK: - Bun Computation (most accurate)
+    // MARK: - Node Computation (most accurate — uses FNV-1a like Claude Code)
 
-    private static func computeBonesViaBun(userId: String, salt: String) -> Bones? {
-        let bunPaths = [
-            FileManager.default.homeDirectoryForCurrentUser.path + "/bin/bun",
-            FileManager.default.homeDirectoryForCurrentUser.path + "/.bun/bin/bun",
+    private static func computeBonesViaNode(userId: String, salt: String) -> Bones? {
+        // Search for node in common locations including nvm
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        var nodePaths = [
+            "/opt/homebrew/bin/node", "/usr/local/bin/node", "/usr/bin/node",
+            home + "/bin/bun", home + "/.bun/bin/bun",
             "/opt/homebrew/bin/bun", "/usr/local/bin/bun"
         ]
-        guard let bunPath = bunPaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else { return nil }
+        // Add nvm node paths
+        let nvmDir = home + "/.nvm/versions/node"
+        if let versions = try? FileManager.default.contentsOfDirectory(atPath: nvmDir) {
+            for v in versions.sorted().reversed() {
+                nodePaths.insert(nvmDir + "/" + v + "/bin/node", at: 0)
+            }
+        }
+        guard let runtimePath = nodePaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else { return nil }
+
+        let isBun = runtimePath.hasSuffix("/bun")
+
+        // Claude Code uses FNV-1a when running under Node (not Bun)
+        // When Bun is available, use Bun.hash (wyhash) instead
+        let hashFn = isBun
+            ? "function H(s){return Number(BigInt(Bun.hash(s))&0xffffffffn)}"
+            : "function H(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}"
 
         let script = """
+        \(hashFn)
         const S=['duck','goose','blob','cat','dragon','octopus','owl','penguin','turtle','snail','ghost','axolotl','capybara','cactus','robot','rabbit','mushroom','chonk'];
         const R=['common','uncommon','rare','epic','legendary'];
         const W={common:60,uncommon:25,rare:10,epic:4,legendary:1};
         const E=['·','✦','×','◉','@','°'];
-        const H=['none','crown','tophat','propeller','halo','wizard','beanie','tinyduck'];
+        const HH=['none','crown','tophat','propeller','halo','wizard','beanie','tinyduck'];
         const SN=['DEBUGGING','PATIENCE','CHAOS','WISDOM','SNARK'];
         const RF={common:5,uncommon:15,rare:25,epic:35,legendary:50};
         function m32(s){let a=s>>>0;return()=>{a|=0;a=(a+0x6d2b79f5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296}}
         function pick(r,a){return a[Math.floor(r()*a.length)]}
-        const h=Number(BigInt(Bun.hash('\(userId)'+'\(salt)'))&0xffffffffn);
+        const h=H('\(userId)'+'\(salt)');
         const r=m32(h);
         let roll=r()*100,rarity='common';
         for(const rr of R){roll-=W[rr];if(roll<0){rarity=rr;break}}
         const species=pick(r,S),eye=pick(r,E);
-        const hat=rarity==='common'?'none':pick(r,H);
+        const hat=rarity==='common'?'none':pick(r,HH);
         const shiny=r()<0.01;
         const fl=RF[rarity];
         const peak=pick(r,SN);let dump=pick(r,SN);while(dump===peak)dump=pick(r,SN);
@@ -300,7 +318,7 @@ class BuddyReader: ObservableObject {
 
         let process = Process()
         let pipe = Pipe()
-        process.executableURL = URL(fileURLWithPath: bunPath)
+        process.executableURL = URL(fileURLWithPath: runtimePath)
         process.arguments = ["-e", script]
         process.standardOutput = pipe
         process.standardError = FileHandle.nullDevice
@@ -312,7 +330,7 @@ class BuddyReader: ObservableObject {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let bones = parseBones(json) else { return nil }
-            cacheBones(bones) // Cache for next time
+            cacheBones(bones)
             return bones
         } catch {
             return nil
@@ -348,10 +366,19 @@ class BuddyReader: ObservableObject {
         }
     }
 
+    /// FNV-1a hash — matches Claude Code's non-Bun fallback exactly
+    private static func fnv1a(_ string: String) -> UInt32 {
+        var h: UInt32 = 2166136261
+        for c in string.utf8 {
+            h ^= UInt32(c)
+            h = h &* 16777619
+        }
+        return h
+    }
+
     private static func computeBones(userId: String, salt: String) -> Bones {
         let key = userId + salt
-        let hash = WyHash.hash(key)
-        let seed = UInt32(hash & 0xFFFFFFFF)
+        let seed = fnv1a(key)
         var rng = Mulberry32(seed: seed)
 
         // Rarity FIRST (must match Claude Code's rollFrom order)
