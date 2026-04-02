@@ -149,11 +149,20 @@ class BuddyReader: ObservableObject {
         if let cached = Self.readCachedBones() {
             bones = cached
         } else if let bunBones = Self.computeBonesViaBun(userId: userId, salt: salt) {
-            // Bun uses wyhash — matches Claude Code exactly
+            // Bun available → use Bun.hash (wyhash), matches native Claude Code install
             bones = bunBones
         } else {
-            // Fallback: Swift wyhash (accurate for userId+salt which is always 51+ bytes)
-            bones = Self.computeBones(userId: userId, salt: salt)
+            // No Bun → detect if Claude Code uses Bun (native) or Node (npm)
+            let isNativeInstall = FileManager.default.fileExists(
+                atPath: FileManager.default.homeDirectoryForCurrentUser.path + "/.local/share/claude/versions"
+            )
+            if isNativeInstall {
+                // Native install uses Bun.hash (wyhash) — use Swift wyhash
+                bones = Self.computeBonesWyhash(userId: userId, salt: salt)
+            } else {
+                // npm install uses Node FNV-1a
+                bones = Self.computeBonesFnv1a(userId: userId, salt: salt)
+            }
             Self.cacheBones(bones)
         }
 
@@ -353,11 +362,30 @@ class BuddyReader: ObservableObject {
         }
     }
 
-    private static func computeBones(userId: String, salt: String) -> Bones {
+    /// FNV-1a hash — matches Claude Code's Node (non-Bun) path
+    private static func fnv1aHash(_ s: String) -> UInt32 {
+        var h: UInt32 = 2166136261
+        for c in s.utf8 {
+            h ^= UInt32(c)
+            h = h &* 16777619
+        }
+        return h
+    }
+
+    private static func computeBonesFnv1a(userId: String, salt: String) -> Bones {
         let key = userId + salt
-        // Use wyhash — matches Claude Code (Bun.hash) for 51+ byte keys
+        let seed = fnv1aHash(key)
+        return rollBones(seed: seed)
+    }
+
+    private static func computeBonesWyhash(userId: String, salt: String) -> Bones {
+        let key = userId + salt
         let hash = WyHash.hash(key)
         let seed = UInt32(hash & 0xFFFFFFFF)
+        return rollBones(seed: seed)
+    }
+
+    private static func rollBones(seed: UInt32) -> Bones {
         var rng = Mulberry32(seed: seed)
 
         // Rarity FIRST (must match Claude Code's rollFrom order)
