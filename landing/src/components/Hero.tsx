@@ -62,7 +62,7 @@ export default function Hero() {
               className="group flex items-center gap-2.5 bg-green text-deep px-8 py-3.5 rounded-xl font-mono text-sm font-bold transition-all duration-300 hover:shadow-[0_0_40px_rgba(52,211,153,0.3)] hover:scale-[1.03]"
             >
               <Download size={16} />
-              免费下载
+              Mac 免费下载
             </a>
             <a
               href="https://github.com/xmqywx/CodeIsland"
