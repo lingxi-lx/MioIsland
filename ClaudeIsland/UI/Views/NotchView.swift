@@ -792,7 +792,7 @@ struct CollapsedNotchContent: View {
                         .font(.system(size: 13, weight: .bold, design: .monospaced))
                         .foregroundColor(.white.opacity(0.6))
                         .lineLimit(1)
-                        .fixedSize()
+
                 }
 
                 if activeSessionCount > 0 {
@@ -861,18 +861,18 @@ struct CollapsedNotchContent: View {
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
                     .foregroundStyle(statusGradient)
                     .lineLimit(1)
-                    .fixedSize()
+
                 AnimatedEllipsis()
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
                     .foregroundStyle(statusGradient)
-                    .fixedSize()
+
             }
         } else if let parts = activityTextParts {
             Text(parts.status)
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
-                .fixedSize()
+
         }
     }
 
@@ -885,7 +885,7 @@ struct CollapsedNotchContent: View {
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
-                .fixedSize()
+
         } else {
             // Fall back to status text if no task title available
             carouselStatusText
@@ -912,7 +912,7 @@ struct CollapsedNotchContent: View {
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
-                .fixedSize()
+
         } else {
             // Fall back to status text if no tool info
             carouselStatusText
@@ -930,13 +930,13 @@ struct CollapsedNotchContent: View {
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
-                .fixedSize()
+
         } else if let parts = activityTextParts {
             Text(parts.project)
                 .font(.system(size: 13, weight: .bold, design: .monospaced))
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
-                .fixedSize()
+
         }
     }
 
@@ -1035,7 +1035,7 @@ struct ScrollingTextView: View {
                 .font(.system(size: 13, weight: .regular, design: .monospaced))
                 .foregroundColor(.white.opacity(0.5))
                 .lineLimit(1)
-                .fixedSize()
+
                 .background(
                     GeometryReader { textGeo in
                         Color.clear

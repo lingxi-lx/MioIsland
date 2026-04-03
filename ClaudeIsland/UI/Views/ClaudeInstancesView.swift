@@ -494,13 +494,38 @@ struct InstanceRow: View {
                 }
             }
         } else if let summary = session.smartSummary {
-            // Show smart summary for any session that has conversation data
-            Text(summary)
-                .font(.system(size: 10, weight: .regular).italic())
-                .foregroundColor(session.phase == .waitingForInput
-                    ? Color(red: 0.29, green: 0.87, blue: 0.5)
-                    : .white.opacity(0.5))
-                .lineLimit(2)
+            // Show smart summary with color-coded lines
+            VStack(alignment: .leading, spacing: 1) {
+                // Split summary into lines (line 1 = user, line 2 = claude)
+                let parts = summary.components(separatedBy: "\n")
+                if parts.count >= 2 {
+                    // User question
+                    HStack(spacing: 2) {
+                        Text("你")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.4))
+                        Text(parts[0])
+                            .font(.system(size: 9))
+                            .foregroundColor(.white.opacity(0.6))
+                            .lineLimit(1)
+                    }
+                    // Claude reply
+                    HStack(spacing: 2) {
+                        Text("AI")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(Color(red: 0.4, green: 0.91, blue: 0.98).opacity(0.7))
+                        Text(parts[1])
+                            .font(.system(size: 9))
+                            .foregroundColor(Color(red: 0.4, green: 0.91, blue: 0.98).opacity(0.5))
+                            .lineLimit(1)
+                    }
+                } else {
+                    Text(summary)
+                        .font(.system(size: 9))
+                        .foregroundColor(.white.opacity(0.5))
+                        .lineLimit(1)
+                }
+            }
         } else if let role = session.lastMessageRole {
             switch role {
             case "tool":
