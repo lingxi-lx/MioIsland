@@ -447,13 +447,14 @@ struct NotchView: View {
         let newPendingIds = currentIds.subtracting(previousPendingIds)
 
         if !newPendingIds.isEmpty &&
-           viewModel.status == .closed &&
-           !TerminalVisibilityDetector.isTerminalVisibleOnCurrentSpace() {
-            // Smart suppression: don't auto-expand if the user's terminal is frontmost
-            if smartSuppression && TerminalVisibilityDetector.isTerminalFrontmost() {
-                // Terminal is frontmost — user is already looking at it.
-                // Still show collapsed status update, just don't expand.
+           viewModel.status == .closed {
+            // Smart suppression: don't expand if user's terminal is frontmost
+            let termFront = TerminalVisibilityDetector.isTerminalFrontmost()
+            DebugLogger.log("Suppress", "[pending] newIds=\(newPendingIds.count) termFront=\(termFront)")
+            if smartSuppression && termFront {
+                DebugLogger.log("Suppress", "[pending] Suppressed — terminal frontmost")
             } else {
+                DebugLogger.log("Suppress", "[pending] Opening notification")
                 viewModel.notchOpen(reason: .notification)
             }
         }
@@ -514,18 +515,23 @@ struct NotchView: View {
             }
 
             if !sessionsFromWorkingState.isEmpty && viewModel.status == .closed {
-                // Use the first session that completed (most relevant)
                 let completedSession = sessionsFromWorkingState[0]
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
-                    // Re-check conditions after delay to avoid false triggers from rapid state changes
                     guard viewModel.status == .closed else { return }
-                    // Verify the session is still in waitingForInput
                     guard sessionMonitor.instances.contains(where: {
                         $0.stableId == completedSession.stableId && $0.phase == .waitingForInput
                     }) else { return }
 
+                    // Suppress if the session's terminal is frontmost
+                    let isFront = TerminalVisibilityDetector.isSessionTerminalFrontmost(completedSession)
+                    DebugLogger.log("Suppress", "session=\(completedSession.projectName) isFront=\(isFront) termApp=\(completedSession.terminalApp ?? "nil")")
+                    if isFront {
+                        DebugLogger.log("Suppress", "Suppressed — user is looking at terminal")
+                        return
+                    }
+
+                    DebugLogger.log("Suppress", "Opening notification popup")
                     viewModel.notchOpen(reason: .notification)
-                    // Show the completed session's chat
                     if let currentSession = sessionMonitor.instances.first(where: {
                         $0.stableId == completedSession.stableId
                     }) {

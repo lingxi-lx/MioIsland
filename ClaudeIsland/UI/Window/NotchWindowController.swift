@@ -72,9 +72,14 @@ class NotchWindowController: NSWindowController {
                     // Accept mouse events when opened so buttons work
                     notchWindow?.ignoresMouseEvents = false
                     notchWindow?.acceptsMouseMovedEvents = true
-                    // Always make key so hover/click works
-                    NSApp.activate(ignoringOtherApps: false)
-                    notchWindow?.makeKeyAndOrderFront(nil)
+                    // Only steal focus on user-initiated opens (click)
+                    // Hover/notification opens should not interrupt typing in other apps
+                    if viewModel?.shouldActivateOnOpen == true {
+                        NSApp.activate(ignoringOtherApps: false)
+                        notchWindow?.makeKeyAndOrderFront(nil)
+                    } else {
+                        notchWindow?.orderFrontRegardless()
+                    }
                 case .closed, .popping:
                     // Ignore mouse events when closed so clicks pass through
                     notchWindow?.ignoresMouseEvents = true

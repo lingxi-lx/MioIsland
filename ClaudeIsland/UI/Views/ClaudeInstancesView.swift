@@ -19,6 +19,7 @@ struct ClaudeInstancesView: View {
     @AppStorage("showGroupedSessions") private var showGrouped: Bool = false
     @ObservedObject private var buddyReader = BuddyReader.shared
     @State private var showBuddyCard: Bool = false
+    @AppStorage("usePixelCat") private var usePixelCat: Bool = false
 
     var body: some View {
         if sessionMonitor.instances.isEmpty {
@@ -57,10 +58,12 @@ struct ClaudeInstancesView: View {
                     }
                 }
 
-                // Bottom right: buddy + usage stats (hidden when buddy card is open)
-                if !showBuddyCard {
+                // Bottom right: buddy + usage stats
+                // Hidden when buddy card open or when expanded with many sessions
+                if !showBuddyCard && !(sortedInstances.count > 4 && viewModel.isInstancesExpanded) {
                     VStack(alignment: .trailing, spacing: 4) {
-                        if let buddy = buddyReader.buddy {
+                        // Only show buddy when ≤ 5 sessions
+                        if sortedInstances.count <= 5, let buddy = buddyReader.buddy {
                             Button {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                                     showBuddyCard.toggle()
@@ -79,6 +82,12 @@ struct ClaudeInstancesView: View {
                     .padding(.bottom, 2)
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
+            }
+            .onReceive(sessionMonitor.$instances) { instances in
+                viewModel.sessionCount = instances.count
+                viewModel.activeSessionCount = instances.filter {
+                    $0.phase != .idle && $0.phase != .ended
+                }.count
             }
         }
     }
@@ -173,17 +182,76 @@ struct ClaudeInstancesView: View {
 
     // MARK: - Empty State
 
-    private var emptyState: some View {
-        VStack(spacing: 8) {
-            Text(L10n.noSessions)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.white.opacity(0.4))
+    @State private var emptyPulse = false
+    @State private var emptyFloat = false
 
-            Text(L10n.runClaude)
-                .font(.system(size: 11))
-                .foregroundColor(.white.opacity(0.25))
+    private var emptyState: some View {
+        VStack(spacing: 0) {
+            // Top bar with settings
+            HStack {
+                Spacer()
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        viewModel.toggleMenu()
+                    }
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 10))
+                        .foregroundColor(.white.opacity(0.35))
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 10)
+            .padding(.top, 6)
+
+            Spacer()
+
+            // Animated pixel cat
+            VStack(spacing: 12) {
+                if usePixelCat {
+                    PixelCharacterView(state: .idle)
+                        .scaleEffect(0.8)
+                        .frame(width: 52, height: 44)
+                        .offset(y: emptyFloat ? -3 : 3)
+                } else if let buddy = buddyReader.buddy {
+                    BuddyASCIIView(buddy: buddy)
+                        .frame(width: 80, height: 55)
+                        .scaleEffect(0.8)
+                        .offset(y: emptyFloat ? -3 : 3)
+                } else {
+                    PixelCharacterView(state: .idle)
+                        .scaleEffect(0.8)
+                        .frame(width: 52, height: 44)
+                        .offset(y: emptyFloat ? -3 : 3)
+                }
+
+                Text(L10n.noSessions)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white.opacity(emptyPulse ? 0.5 : 0.3))
+
+                Text(L10n.runClaude)
+                    .font(.system(size: 10))
+                    .foregroundColor(.white.opacity(0.2))
+                    .padding(.horizontal, 20)
+                    .multilineTextAlignment(.center)
+
+                // Usage stats if available
+                UsageStatsBar(monitor: rateLimitMonitor, totalMinutes: 0)
+                    .padding(.top, 4)
+            }
+
+            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
+                emptyPulse = true
+            }
+            withAnimation(.easeInOut(duration: 3).repeatForever(autoreverses: true)) {
+                emptyFloat = true
+            }
+        }
     }
 
     // MARK: - Stats
@@ -282,8 +350,49 @@ struct ClaudeInstancesView: View {
                     }
                 }
 
-                // "Show all N sessions" footer
-                if sortedInstances.count > 0 {
+                // Footer: expand/collapse when >4 sessions, or just count
+                if sortedInstances.count > 4 && !viewModel.isInstancesExpanded {
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            viewModel.isInstancesExpanded = true
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 8))
+                            Text(L10n.showAllSessions(sortedInstances.count))
+                                .font(.system(size: 10))
+                        }
+                        .foregroundColor(.white.opacity(0.3))
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(.white.opacity(0.04))
+                        )
+                        .padding(.horizontal, 8)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
+                } else if sortedInstances.count > 4 && viewModel.isInstancesExpanded {
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            viewModel.isInstancesExpanded = false
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.up")
+                                .font(.system(size: 8))
+                            Text("收起")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundColor(.white.opacity(0.3))
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 4)
+                } else if sortedInstances.count > 0 {
                     Text(L10n.showAllSessions(sortedInstances.count))
                         .font(.system(size: 10))
                         .foregroundColor(.white.opacity(0.2))
@@ -441,6 +550,26 @@ struct InstanceRow: View {
 
     @ObservedObject private var buddyReader = BuddyReader.shared
     @AppStorage("usePixelCat") private var usePixelCat: Bool = false
+    @State private var phaseFlash = false
+    @State private var previousPhase: SessionPhase?
+
+    /// Whether the pending tool is AskUserQuestion with options
+    private var askUserOptions: [QuestionOption]? {
+        guard let toolName = session.pendingToolName, toolName == "AskUserQuestion",
+              let input = session.activePermission?.toolInput,
+              let questionsValue = input["questions"]?.value as? [[String: Any]] else { return nil }
+        var options: [QuestionOption] = []
+        for q in questionsValue {
+            if let opts = q["options"] as? [[String: Any]] {
+                for opt in opts {
+                    let label = opt["label"] as? String ?? ""
+                    let desc = opt["description"] as? String
+                    options.append(QuestionOption(label: label, description: desc))
+                }
+            }
+        }
+        return options.isEmpty ? nil : options
+    }
 
     /// Animation state derived from session phase
     private var animationState: AnimationState {
@@ -570,8 +699,54 @@ struct InstanceRow: View {
                         }
                     }
 
-                    // Approval buttons row when needed
-                    if isWaitingForApproval {
+                    // AskUserQuestion: show options inline
+                    if isWaitingForApproval, let options = askUserOptions {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(L10n.claudeNeedsInput)
+                                .font(.system(size: 9))
+                                .foregroundColor(TerminalColors.amber.opacity(0.7))
+
+                            HStack(spacing: 6) {
+                                ForEach(Array(options.prefix(3).enumerated()), id: \.offset) { index, option in
+                                    Text(option.label)
+                                        .font(.system(size: 9, weight: .medium))
+                                        .foregroundColor(.white.opacity(0.8))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(TerminalColors.amber.opacity(0.15))
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 4)
+                                                        .strokeBorder(TerminalColors.amber.opacity(0.2), lineWidth: 0.5)
+                                                )
+                                        )
+                                        .contentShape(Rectangle())
+                                        .onTapGesture {
+                                            DebugLogger.log("AskUser", "Option \(index + 1) tapped: \(option.label)")
+                                            Task {
+                                                await sendOptionToTerminal(index: index + 1, session: session)
+                                            }
+                                        }
+                                }
+
+                                Image(systemName: "terminal")
+                                    .font(.system(size: 9))
+                                    .foregroundColor(TerminalColors.amber.opacity(0.5))
+                                    .frame(width: 20, height: 20)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(TerminalColors.amber.opacity(0.08))
+                                    )
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { onFocus() }
+                            }
+                        }
+                        .padding(.top, 2)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+                    // Regular approval buttons
+                    else if isWaitingForApproval {
                         InlineApprovalButtons(
                             onChat: onChat,
                             onApprove: onApprove,
@@ -586,13 +761,144 @@ struct InstanceRow: View {
             .contentShape(Rectangle())
             .onTapGesture { onChat() }
             .background(
-                RoundedRectangle(cornerRadius: isActive ? 8 : 6)
-                    .fill(isActive
-                        ? accentColor.opacity(isHovered ? 0.1 : 0.05)
-                        : (isHovered ? Color.white.opacity(0.06) : Color.clear))
+                ZStack {
+                    // Base background
+                    RoundedRectangle(cornerRadius: isActive ? 8 : 6)
+                        .fill(isActive
+                            ? accentColor.opacity(isHovered ? 0.1 : 0.05)
+                            : (isHovered ? Color.white.opacity(0.06) : Color.clear))
+
+                    // Phase transition flash
+                    if phaseFlash {
+                        RoundedRectangle(cornerRadius: isActive ? 8 : 6)
+                            .fill(accentColor.opacity(0.15))
+                            .transition(.opacity)
+                    }
+                }
             )
+            .onChange(of: session.phase) { oldPhase, newPhase in
+                // Flash on phase transition
+                if oldPhase != newPhase {
+                    withAnimation(.easeIn(duration: 0.15)) {
+                        phaseFlash = true
+                    }
+                    withAnimation(.easeOut(duration: 0.5).delay(0.15)) {
+                        phaseFlash = false
+                    }
+                    // Play sound for important transitions
+                    if newPhase == .waitingForInput && (oldPhase == .processing || oldPhase == .compacting) {
+                        SoundManager.shared.play(.sessionComplete)
+                    }
+                }
+            }
         }
         .onHover { isHovered = $0 }
+    }
+
+    // MARK: - AskUserQuestion Response
+
+    /// Send an option selection to the session's terminal
+    private func sendOptionToTerminal(index: Int, session: SessionState) async {
+        let termApp = session.terminalApp?.lowercased() ?? ""
+
+        // Try AppleScript for iTerm2 / Terminal.app / Ghostty
+        if termApp.contains("iterm") {
+            let script = """
+            tell application "iTerm2"
+                tell current session of current tab of current window
+                    write text "\(index)"
+                end tell
+            end tell
+            """
+            if runAppleScript(script) {
+                DebugLogger.log("AskUser", "Sent via iTerm2")
+                return
+            }
+        }
+
+        if termApp.contains("terminal") && !termApp.contains("wez") {
+            let script = """
+            tell application "Terminal"
+                do script "\(index)" in selected tab of front window
+            end tell
+            """
+            if runAppleScript(script) {
+                DebugLogger.log("AskUser", "Sent via Terminal.app")
+                return
+            }
+        }
+
+        // cmux
+        let cmuxPath = "/Applications/cmux.app/Contents/Resources/bin/cmux"
+        guard FileManager.default.isExecutableFile(atPath: cmuxPath) else {
+            DebugLogger.log("AskUser", "No supported terminal, jumping")
+            await TerminalJumper.shared.jump(to: session)
+            return
+        }
+
+        let dirName = URL(fileURLWithPath: session.cwd).lastPathComponent
+        let sid = String(session.sessionId.prefix(8))
+        DebugLogger.log("AskUser", "Finding workspace for '\(dirName)' sid=\(sid)")
+
+        // Helper to run cmux commands
+        func cmuxRun(_ args: [String]) -> String? {
+            let p = Process()
+            let pipe = Pipe()
+            p.executableURL = URL(fileURLWithPath: cmuxPath)
+            p.arguments = args
+            p.standardOutput = pipe
+            p.standardError = FileHandle.nullDevice
+            do {
+                try p.run()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                p.waitUntilExit()
+                guard p.terminationStatus == 0 else { return nil }
+                return String(data: data, encoding: .utf8)
+            } catch { return nil }
+        }
+
+        // Find workspace by searching surface titles for session ID or dir name
+        guard let wsOutput = cmuxRun(["list-workspaces"]) else {
+            await TerminalJumper.shared.jump(to: session)
+            return
+        }
+
+        var targetWsRef: String?
+        for wsLine in wsOutput.components(separatedBy: "\n") where !wsLine.isEmpty {
+            guard let wsRef = wsLine.components(separatedBy: " ").first(where: { $0.hasPrefix("workspace:") }) else { continue }
+            guard let surfOutput = cmuxRun(["list-pane-surfaces", "--workspace", wsRef]) else { continue }
+            if surfOutput.contains(sid) || surfOutput.contains(dirName) {
+                targetWsRef = wsRef
+                break
+            }
+        }
+
+        guard let wsRef = targetWsRef else {
+            DebugLogger.log("AskUser", "No matching workspace, jumping")
+            await TerminalJumper.shared.jump(to: session)
+            return
+        }
+
+        // Send the option number + Enter
+        DebugLogger.log("AskUser", "Sending '\(index)' to \(wsRef)")
+        _ = cmuxRun(["send", "--workspace", wsRef, "--", "\(index)\r"])
+        DebugLogger.log("AskUser", "Sent!")
+    }
+
+    private func runAppleScript(_ script: String) -> Bool {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
+        }
     }
 
     // MARK: - Subtitle

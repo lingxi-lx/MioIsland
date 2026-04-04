@@ -40,6 +40,154 @@ struct TerminalVisibilityDetector {
         return TerminalAppRegistry.isTerminalBundle(bundleId)
     }
 
+    /// Check if a specific session's terminal tab/workspace is currently visible and active
+    static func isSessionTerminalFrontmost(_ session: SessionState) -> Bool {
+        guard let frontmostApp = NSWorkspace.shared.frontmostApplication,
+              let bundleId = frontmostApp.bundleIdentifier else {
+            return false
+        }
+
+        guard TerminalAppRegistry.isTerminalBundle(bundleId) else {
+            return false
+        }
+
+        let termApp = session.terminalApp?.lowercased() ?? ""
+        let dirName = URL(fileURLWithPath: session.cwd).lastPathComponent
+
+        // cmux: check workspace
+        if termApp.contains("cmux") {
+            return isCmuxSessionActive(session)
+        }
+
+        // iTerm2: check if current session name contains project dir
+        if bundleId == "com.googlecode.iterm2" {
+            return isITermSessionActive(dirName: dirName)
+        }
+
+        // Ghostty: check if current window title contains project dir
+        if bundleId == "com.mitchellh.ghostty" {
+            return isGhosttySessionActive(dirName: dirName)
+        }
+
+        // Terminal.app: check if current tab contains project dir
+        if bundleId == "com.apple.Terminal" {
+            return isTerminalAppSessionActive(dirName: dirName)
+        }
+
+        // Other terminals: terminal frontmost = assume session visible
+        return true
+    }
+
+    /// Check if a cmux session's workspace is currently selected
+    private static func isCmuxSessionActive(_ session: SessionState) -> Bool {
+        let cmuxPath = "/Applications/cmux.app/Contents/Resources/bin/cmux"
+        guard FileManager.default.isExecutableFile(atPath: cmuxPath) else { return true }
+
+        let dirName = URL(fileURLWithPath: session.cwd).lastPathComponent
+        let sid = String(session.sessionId.prefix(8))
+
+        func cmuxRun(_ args: [String]) -> String? {
+            let p = Process()
+            let pipe = Pipe()
+            p.executableURL = URL(fileURLWithPath: cmuxPath)
+            p.arguments = args
+            p.standardOutput = pipe
+            p.standardError = FileHandle.nullDevice
+            do {
+                try p.run()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                p.waitUntilExit()
+                guard p.terminationStatus == 0 else { return nil }
+                return String(data: data, encoding: .utf8)
+            } catch { return nil }
+        }
+
+        // Get selected workspace
+        guard let wsOutput = cmuxRun(["list-workspaces"]) else { return true }
+        var selectedWsRef: String?
+        for line in wsOutput.components(separatedBy: "\n") {
+            if line.contains("[selected]"),
+               let ref = line.components(separatedBy: " ").first(where: { $0.hasPrefix("workspace:") }) {
+                selectedWsRef = ref
+                break
+            }
+        }
+        guard let wsRef = selectedWsRef else { return true }
+
+        // Check if this session is in the selected workspace (by surface title)
+        guard let surfOutput = cmuxRun(["list-pane-surfaces", "--workspace", wsRef]) else { return true }
+        return surfOutput.contains(sid) || surfOutput.contains(dirName)
+    }
+
+    // MARK: - iTerm2
+
+    private static func isITermSessionActive(dirName: String) -> Bool {
+        let script = """
+        tell application "iTerm2"
+            try
+                set sessionName to name of current session of current tab of current window
+                if sessionName contains "\(dirName)" then return "true"
+            end try
+            return "false"
+        end tell
+        """
+        return runAppleScriptBool(script)
+    }
+
+    // MARK: - Ghostty
+
+    private static func isGhosttySessionActive(dirName: String) -> Bool {
+        let script = """
+        tell application "System Events"
+            tell process "Ghostty"
+                try
+                    set winTitle to name of front window
+                    if winTitle contains "\(dirName)" then return "true"
+                end try
+            end tell
+        end tell
+        return "false"
+        """
+        return runAppleScriptBool(script)
+    }
+
+    // MARK: - Terminal.app
+
+    private static func isTerminalAppSessionActive(dirName: String) -> Bool {
+        let script = """
+        tell application "Terminal"
+            try
+                set tabTitle to custom title of selected tab of front window
+                if tabTitle contains "\(dirName)" then return "true"
+                set tabHistory to history of selected tab of front window
+                if tabHistory contains "\(dirName)" then return "true"
+            end try
+            return "false"
+        end tell
+        """
+        return runAppleScriptBool(script)
+    }
+
+    // MARK: - AppleScript Helper
+
+    private static func runAppleScriptBool(_ script: String) -> Bool {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return output == "true"
+        } catch {
+            return false
+        }
+    }
+
     /// Check if a Claude session is currently focused (user is looking at it)
     /// - Parameter sessionPid: The PID of the Claude process
     /// - Returns: true if the session's terminal is frontmost and (for tmux) the pane is active

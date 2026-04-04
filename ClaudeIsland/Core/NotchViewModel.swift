@@ -46,6 +46,11 @@ class NotchViewModel: ObservableObject {
     @Published var contentType: NotchContentType = .instances
     @Published var isHovering: Bool = false
 
+    /// Session counts for dynamic panel sizing
+    @Published var sessionCount: Int = 0
+    @Published var activeSessionCount: Int = 0
+    @Published var isInstancesExpanded: Bool = false
+
     // MARK: - Dependencies
 
     private let screenSelector = ScreenSelector.shared
@@ -77,9 +82,21 @@ class NotchViewModel: ObservableObject {
                 height: 560 + screenSelector.expandedPickerHeight + soundSelector.expandedPickerHeight
             )
         case .instances:
+            let baseHeight: CGFloat = 100
+            let perSession: CGFloat = 65
+            let contentHeight = baseHeight + CGFloat(sessionCount) * perSession
+            // ≤4 sessions: fit content + room for buddy; >4: capped unless expanded
+            let compactMax: CGFloat = 360
+            let expandedMax: CGFloat = min(screenRect.height * 0.65, 600)
+            let height: CGFloat
+            if sessionCount <= 4 {
+                height = min(contentHeight, expandedMax)
+            } else {
+                height = isInstancesExpanded ? expandedMax : compactMax
+            }
             return CGSize(
                 width: min(screenRect.width * 0.4, 480),
-                height: 320
+                height: max(height, 200)
             )
         }
     }
@@ -222,8 +239,13 @@ class NotchViewModel: ObservableObject {
 
     // MARK: - Actions
 
+    /// Whether the current open was triggered by user action (should steal focus)
+    var shouldActivateOnOpen: Bool = false
+
     func notchOpen(reason: NotchOpenReason = .unknown) {
         openReason = reason
+        // Only steal focus when user explicitly clicked
+        shouldActivateOnOpen = (reason == .click)
         status = .opened
 
         // Don't restore chat on notification - show instances list instead
