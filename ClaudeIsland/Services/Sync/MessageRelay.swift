@@ -27,6 +27,11 @@ final class MessageRelay {
     /// Map local sessionId → server session id
     private var serverSessionIds: [String: String] = [:]
 
+    /// Reverse lookup: server session id → local session id
+    func localSessionId(forServerId serverId: String) -> String? {
+        return serverSessionIds.first(where: { $0.value == serverId })?.key
+    }
+
     init(connection: ServerConnection) {
         self.connection = connection
     }

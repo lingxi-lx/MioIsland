@@ -41,8 +41,8 @@ final class ServerConnection: ObservableObject {
     /// Called when an RPC request arrives from the phone
     var onRpcCall: ((String, String, @escaping (String) -> Void) -> Void)?
 
-    /// Called when the phone sends a user message to a session
-    var onUserMessage: ((String, String) -> Void)?  // (sessionId, message)
+    /// Called when a user message arrives from another device (phone)
+    var onUserMessage: ((String, String) -> Void)?  // (serverSessionId, messageText)
 
     var isConnected: Bool { state == .connected }
 
@@ -148,6 +148,29 @@ final class ServerConnection: ObservableObject {
 
             self?.onRpcCall?(method, params) { result in
                 ack.with(["ok": true, "result": result] as [String: Any])
+            }
+        }
+
+        // Handle messages from other devices (phone → terminal)
+        socket?.on("update") { [weak self] data, _ in
+            guard let dict = data.first as? [String: Any],
+                  let type = dict["type"] as? String,
+                  type == "new-message",
+                  let sessionId = dict["sessionId"] as? String,
+                  let msgDict = dict["message"] as? [String: Any],
+                  let content = msgDict["content"] as? String else { return }
+
+            // Parse message — if it's a plain text user message from phone, forward to terminal
+            if let jsonData = content.data(using: .utf8),
+               let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+               let msgType = parsed["type"] as? String {
+                // Skip non-user messages (don't echo our own synced messages)
+                if msgType != "user" { return }
+            }
+            // Plain text = message from phone (not JSON-serialized by MessageRelay)
+            Task { @MainActor in
+                Self.logger.info("Received user message from phone for session \(sessionId.prefix(8))...")
+                self?.onUserMessage?(sessionId, content)
             }
         }
 

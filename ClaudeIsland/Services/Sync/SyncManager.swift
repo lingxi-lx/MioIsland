@@ -61,6 +61,13 @@ final class SyncManager: ObservableObject {
             try await conn.authenticate()
             conn.connect()
 
+            // Handle messages from phone → type into terminal
+            conn.onUserMessage = { [weak self] serverSessionId, messageText in
+                Task { @MainActor in
+                    await self?.handlePhoneMessage(serverSessionId: serverSessionId, text: messageText)
+                }
+            }
+
             // Wait for socket to actually connect before starting relay
             let relay = MessageRelay(connection: conn)
             self.relay = relay
@@ -90,6 +97,30 @@ final class SyncManager: ObservableObject {
         } catch {
             connectionState = .error(error.localizedDescription)
             Self.logger.error("Sync connection failed: \(error)")
+        }
+    }
+
+    /// Handle a user message received from the phone — type it into the matching terminal
+    private func handlePhoneMessage(serverSessionId: String, text: String) async {
+        // Find the matching local session by checking relay's serverSessionIds
+        // For now, find any active session and send to it
+        let sessions = await SessionStore.shared.currentSessions()
+
+        // Try to find session matching the server ID via relay's mapping
+        if let relay = self.relay, let localId = relay.localSessionId(forServerId: serverSessionId) {
+            if let session = sessions.first(where: { $0.sessionId == localId }) {
+                let sent = await TerminalWriter.shared.sendText(text, to: session)
+                Self.logger.info("Phone message → terminal: \(sent ? "success" : "failed")")
+                return
+            }
+        }
+
+        // Fallback: send to first active session
+        if let session = sessions.first(where: { $0.phase != .ended }) {
+            let sent = await TerminalWriter.shared.sendText(text, to: session)
+            Self.logger.info("Phone message → terminal (fallback): \(sent ? "success" : "failed")")
+        } else {
+            Self.logger.warning("No active session to send phone message to")
         }
     }
 
