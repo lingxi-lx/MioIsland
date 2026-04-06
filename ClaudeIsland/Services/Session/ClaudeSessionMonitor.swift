@@ -31,9 +31,6 @@ class ClaudeSessionMonitor: ObservableObject {
     // MARK: - Monitoring Lifecycle
 
     func startMonitoring() {
-        // Start JSONL file scanner (for sessions not tracked via hooks, e.g., cmux)
-        JSONLSessionDiscoverer.shared.start()
-
         HookSocketServer.shared.start(
             onEvent: { event in
                 Task {
@@ -74,7 +71,6 @@ class ClaudeSessionMonitor: ObservableObject {
     }
 
     func stopMonitoring() {
-        JSONLSessionDiscoverer.shared.stop()
         HookSocketServer.shared.stop()
     }
 
