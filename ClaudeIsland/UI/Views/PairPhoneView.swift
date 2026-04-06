@@ -74,21 +74,41 @@ final class QRPairingWindow {
         }
 
         let hostingView = NSHostingView(rootView: contentView)
+        let windowWidth: CGFloat = 280
+        let windowHeight: CGFloat = 380
         let w = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 420),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            contentRect: NSRect(x: 0, y: 0, width: windowWidth, height: windowHeight),
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
-        w.titlebarAppearsTransparent = true
-        w.titleVisibility = .hidden
         w.backgroundColor = .clear
+        w.isOpaque = false
+        w.hasShadow = true
         w.isMovableByWindowBackground = true
         w.contentView = hostingView
-        w.center()
+
+        // Position above notch area (top center of screen)
+        if let screen = NSScreen.main {
+            let screenFrame = screen.frame
+            let x = screenFrame.midX - windowWidth / 2
+            let y = screenFrame.maxY - windowHeight - 60  // Just below the top
+            w.setFrameOrigin(NSPoint(x: x, y: y))
+        }
+
         w.level = .floating
         w.makeKeyAndOrderFront(nil)
         w.isReleasedWhenClosed = false
+
+        // Close on click outside
+        NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak w] event in
+            if let window = w, !NSPointInRect(event.locationInWindow, window.contentView?.bounds ?? .zero) {
+                if event.window != window {
+                    self.close()
+                }
+            }
+            return event
+        }
 
         self.window = w
     }
@@ -105,77 +125,85 @@ private struct QRPairingContentView: View {
     let onClose: () -> Void
     @State private var qrImage: NSImage?
     @State private var deviceName = Host.current().localizedName ?? "Mac"
+    @State private var isHoveringClose = false
 
     private var serverUrl: String {
         SyncManager.shared.serverUrl ?? "https://island.wdao.chat"
     }
 
     var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            VStack(spacing: 6) {
-                Image(systemName: "iphone.radiowaves.left.and.right")
-                    .font(.system(size: 36))
-                    .foregroundStyle(.linearGradient(
-                        colors: [.cyan, .blue],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-
-                Text("Pair with CodeLight")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-
-                Text("Scan this QR code with your iPhone")
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.5))
+        VStack(spacing: 16) {
+            // Close button
+            HStack {
+                Spacer()
+                Button {
+                    onClose()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white.opacity(isHoveringClose ? 0.6 : 0.25))
+                }
+                .buttonStyle(.plain)
+                .onHover { isHoveringClose = $0 }
             }
+            .padding(.bottom, -8)
 
-            // QR Code
+            // QR Code with integrated label
             if let qrImage {
-                Image(nsImage: qrImage)
-                    .interpolation(.none)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 200, height: 200)
-                    .padding(16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(.white)
-                    )
-                    .shadow(color: .cyan.opacity(0.3), radius: 20)
+                VStack(spacing: 10) {
+                    Image(nsImage: qrImage)
+                        .interpolation(.none)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 180, height: 180)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .padding(14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(.white)
+                        )
+                }
             }
 
-            // Info
-            VStack(spacing: 4) {
-                HStack(spacing: 4) {
-                    Image(systemName: "server.rack")
-                        .font(.system(size: 10))
-                    Text(serverUrl)
-                        .font(.system(size: 11, design: .monospaced))
-                }
-                .foregroundColor(.white.opacity(0.4))
+            // Title
+            Text("Scan with CodeLight")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white.opacity(0.9))
 
-                HStack(spacing: 4) {
-                    Image(systemName: "desktopcomputer")
-                        .font(.system(size: 10))
-                    Text(deviceName)
-                        .font(.system(size: 11))
-                }
-                .foregroundColor(.white.opacity(0.4))
+            // Info pills
+            HStack(spacing: 8) {
+                infoPill(icon: "link", text: URL(string: serverUrl)?.host ?? serverUrl)
+                infoPill(icon: "desktopcomputer", text: deviceName)
             }
-
-            Spacer()
         }
-        .padding(24)
-        .frame(width: 320, height: 420)
+        .padding(20)
+        .frame(width: 280, height: 380)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(nsColor: NSColor(white: 0.12, alpha: 1)))
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.5), radius: 30, y: 10)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(.white.opacity(0.1), lineWidth: 0.5)
         )
         .onAppear {
             generateQRCode()
         }
+    }
+
+    private func infoPill(icon: String, text: String) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 8))
+            Text(text)
+                .font(.system(size: 9))
+                .lineLimit(1)
+        }
+        .foregroundColor(.white.opacity(0.4))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(.white.opacity(0.06)))
     }
 
     private func generateQRCode() {
