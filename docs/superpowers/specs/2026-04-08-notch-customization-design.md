@@ -1134,6 +1134,9 @@ approved:
 11. **`ScreenObserver` → store access pattern** spelled out:
     reads `NotchCustomizationStore.shared` directly since both
     are `@MainActor` singletons; no subscription or DI needed.
+    *(Superseded by round 3 item 1 — the claim that `ScreenObserver`
+    is a `@MainActor` singleton was factually wrong. The authoritative
+    pattern is in the current Section 5.5 body.)*
 12. **Notch Preset dashed width marker** animation made concrete:
     opacity 0→1 (0.2s easeIn), hold 1.6s, 1→0 (0.2s easeOut),
     positioned 8pt below the notch frame.
