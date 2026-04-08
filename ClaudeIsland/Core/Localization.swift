@@ -183,4 +183,52 @@ enum L10n {
 
     static var smartSuppression: String { tr("Smart Suppression", "智能抑制") }
     static var autoCollapseOnMouseLeave: String { tr("Auto-Collapse on Leave", "离开时自动收起") }
+
+    // MARK: - Notch customization
+    //
+    // Deviation from spec: the spec (Section 4.5) lists these keys
+    // for `Localizable.xcstrings`, but this project currently uses
+    // the hand-rolled `L10n` helper (en + zh-Hans as Swift string
+    // pairs). Strings added here follow the established pattern
+    // and match the voice of surrounding entries. A future migration
+    // to `.xcstrings` can pick them up mechanically from this file.
+
+    static var notchSectionHeader: String { tr("Notch", "灵动岛") }
+    static var notchTheme: String { tr("Theme", "主题") }
+    static var notchThemeClassic: String { tr("Classic", "经典") }
+    static var notchThemePaper: String { tr("Paper", "纸张") }
+    static var notchThemeNeonLime: String { tr("Neon Lime", "霓虹青柠") }
+    static var notchThemeCyber: String { tr("Cyber", "赛博") }
+    static var notchThemeMint: String { tr("Mint", "薄荷") }
+    static var notchThemeSunset: String { tr("Sunset", "日落") }
+    static var notchFontSize: String { tr("Font Size", "字号") }
+    static var notchFontSmall: String { tr("S", "小") }
+    static var notchFontDefault: String { tr("M", "中") }
+    static var notchFontLarge: String { tr("L", "大") }
+    static var notchFontXLarge: String { tr("XL", "特大") }
+    static var notchFontSmallFull: String { tr("Small", "小") }
+    static var notchFontDefaultFull: String { tr("Default", "默认") }
+    static var notchFontLargeFull: String { tr("Large", "大") }
+    static var notchFontXLargeFull: String { tr("Extra Large", "特大") }
+    static var notchShowBuddy: String { tr("Show Buddy", "显示宠物") }
+    static var notchShowUsageBar: String { tr("Show Usage Bar", "显示用量条") }
+    static var notchHardwareMode: String { tr("Hardware Notch", "硬件刘海") }
+    static var notchHardwareAuto: String { tr("Auto", "自动") }
+    static var notchHardwareForceVirtual: String { tr("Force Virtual", "强制虚拟") }
+    static var notchCustomizeButton: String { tr("Customize Size & Position…", "自定义尺寸与位置…") }
+    static var notchEditSave: String { tr("Save", "保存") }
+    static var notchEditCancel: String { tr("Cancel", "取消") }
+    static var notchEditNotchPreset: String { tr("Notch Preset", "贴合刘海") }
+    static var notchEditDragMode: String { tr("Drag Mode", "拖动模式") }
+    static var notchEditPresetDisabledTooltip: String { tr("Your device doesn't have a hardware notch", "你的设备没有硬件刘海") }
+    static func notchThemeName(_ id: NotchThemeID) -> String {
+        switch id {
+        case .classic:  return notchThemeClassic
+        case .paper:    return notchThemePaper
+        case .neonLime: return notchThemeNeonLime
+        case .cyber:    return notchThemeCyber
+        case .mint:     return notchThemeMint
+        case .sunset:   return notchThemeSunset
+        }
+    }
 }

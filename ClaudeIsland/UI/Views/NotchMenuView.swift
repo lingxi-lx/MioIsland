@@ -171,6 +171,13 @@ struct NotchMenuView: View {
                     PairPhoneRow()
                     PresetSettingsRow()
 
+                    // Notch customization subsection — theme, font
+                    // size, visibility toggles, hardware mode, and
+                    // the "Customize Size & Position…" entry point.
+                    // See NotchCustomizationSettingsView for the
+                    // spec-deviation note about where this UI lives.
+                    NotchCustomizationSettingsView()
+
                     // Footer: star + feedback + version (3 lines compressed
                     // into 2). Star uses lime accent to align with the brand
                     // color used by toggle "on" indicators.
