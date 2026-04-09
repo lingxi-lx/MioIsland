@@ -78,7 +78,8 @@ struct HookEvent: Codable, Sendable {
 
     /// Whether this event expects a response (permission request)
     nonisolated var expectsResponse: Bool {
-        event == "PermissionRequest" && status == "waiting_for_approval"
+        (event == "PermissionRequest" && status == "waiting_for_approval") ||
+        (event == "PreToolUse" && status == "waiting_for_question")
     }
 }
 
