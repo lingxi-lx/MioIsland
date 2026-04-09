@@ -12,77 +12,64 @@ struct AskUserQuestionView: View {
     let session: SessionState
     let context: QuestionContext
     @ObservedObject var sessionMonitor: ClaudeSessionMonitor
-    @State private var otherText: String = ""
-    @State private var showOther: Bool = false
+    @State private var customText: String = ""
     @State private var hoveredIndex: Int? = nil
     @State private var isSending: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            header
-            questionsList
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
-
-    // MARK: - Header
-
-    private var header: some View {
-        HStack {
-            Text(session.projectName)
-                .notchFont(11, weight: .semibold)
-                .notchSecondaryForeground()
-            Spacer()
-            Button {
-                Task { await TerminalJumper.shared.jump(to: session) }
-            } label: {
-                Image(systemName: "terminal")
-                    .notchFont(9)
-                    .foregroundColor(TerminalColors.amber.opacity(0.5))
-                    .frame(width: 22, height: 22)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(TerminalColors.amber.opacity(0.08))
-                    )
-                    .contentShape(Rectangle())
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack {
+                Text(session.projectName)
+                    .notchFont(11, weight: .semibold)
+                    .notchSecondaryForeground()
+                Spacer()
             }
-            .buttonStyle(.plain)
-        }
-    }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
 
-    // MARK: - Questions
-
-    private var questionsList: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(Array(context.questions.enumerated()), id: \.offset) { _, question in
-                    questionBlock(question: question)
+            // Questions + options
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(context.questions.enumerated()), id: \.offset) { _, question in
+                        questionBlock(question: question)
+                    }
                 }
+                .padding(.horizontal, 12)
             }
+
+            Spacer(minLength: 4)
+
+            // Custom text input
+            customInputBar
+                .padding(.horizontal, 12)
+                .padding(.bottom, 6)
+
+            // Jump to terminal — bottom, full width
+            jumpToTerminalButton
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
         }
     }
+
+    // MARK: - Question Block
 
     @ViewBuilder
     private func questionBlock(question: QuestionItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Question text
             Text(question.question)
                 .notchFont(12, weight: .semibold)
                 .foregroundColor(.white.opacity(0.9))
                 .padding(.bottom, 2)
 
-            // Options — vertical list
             ForEach(Array(question.options.enumerated()), id: \.offset) { index, option in
-                optionRow(index: index + 1, option: option)
+                optionRow(index: index + 1, option: option, optionCount: question.options.count)
             }
-
-            // "Other" row
-            otherRow(optionCount: question.options.count)
         }
     }
 
-    private func optionRow(index: Int, option: QuestionOption) -> some View {
+    private func optionRow(index: Int, option: QuestionOption, optionCount: Int) -> some View {
         Button {
             guard !isSending else { return }
             isSending = true
@@ -139,95 +126,90 @@ struct AskUserQuestionView: View {
         }
     }
 
-    private func otherRow(optionCount: Int) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    showOther.toggle()
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: showOther ? "chevron.down" : "chevron.right")
-                        .notchFont(8)
-                        .foregroundColor(TerminalColors.amber.opacity(0.5))
-                        .frame(width: 18, height: 18)
+    // MARK: - Custom Input
 
-                    Text("Other...")
-                        .notchFont(10, weight: .regular)
-                        .foregroundColor(.white.opacity(0.5))
-
-                    Spacer()
-                }
+    private var customInputBar: some View {
+        HStack(spacing: 6) {
+            TextField("Type your answer...", text: $customText)
+                .textFieldStyle(.plain)
+                .notchFont(11)
                 .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .contentShape(Rectangle())
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.white.opacity(0.06))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
+                        )
+                )
+                .onSubmit { submitCustomText() }
+
+            Button {
+                submitCustomText()
+            } label: {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(
+                        customText.isEmpty || isSending
+                            ? Color.white.opacity(0.15)
+                            : TerminalColors.amber
+                    )
             }
             .buttonStyle(.plain)
-
-            if showOther {
-                HStack(spacing: 6) {
-                    TextField("Type your answer", text: $otherText)
-                        .textFieldStyle(.plain)
-                        .notchFont(11)
-                        .padding(6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(Color.white.opacity(0.06))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
-                                )
-                        )
-                        .onSubmit { submitOther(optionCount: optionCount) }
-
-                    Button {
-                        submitOther(optionCount: optionCount)
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(
-                                otherText.isEmpty
-                                    ? Color.white.opacity(0.15)
-                                    : TerminalColors.amber
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(otherText.isEmpty)
-                }
-                .padding(.horizontal, 8)
-            }
+            .disabled(customText.isEmpty || isSending)
         }
+    }
+
+    // MARK: - Jump to Terminal
+
+    private var jumpToTerminalButton: some View {
+        Button {
+            Task { await TerminalJumper.shared.jump(to: session) }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "terminal")
+                    .notchFont(10)
+                Text("Jump to Terminal")
+                    .notchFont(10, weight: .medium)
+            }
+            .foregroundColor(.white.opacity(0.5))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.white.opacity(0.04))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
+                    )
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Terminal Sending
 
-    /// Approve the PermissionRequest first, wait for Claude Code to show
-    /// the AskUserQuestion CLI UI, then send the option number.
     private func approveAndSendOption(index: Int) async {
-        // Step 1: Approve the pending permission so Claude Code starts AskUserQuestion
         sessionMonitor.approvePermission(sessionId: session.sessionId)
-
-        // Step 2: Wait for Claude Code to execute AskUserQuestion and render CLI options
-        try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
-
-        // Step 3: Send the option number to the terminal
+        try? await Task.sleep(nanoseconds: 500_000_000)
         await sendOptionToTerminal(index: index)
     }
 
-    private func submitOther(optionCount: Int) {
-        guard !otherText.isEmpty, !isSending else { return }
+    private func submitCustomText() {
+        guard !customText.isEmpty, !isSending else { return }
         isSending = true
-        DebugLogger.log("AskUser", "Other tapped, sending index \(optionCount + 1) + text")
+        let text = customText
+        let optionCount = context.questions.first?.options.count ?? 0
+        DebugLogger.log("AskUser", "Custom text: \(text)")
         Task {
-            // Approve permission first
             sessionMonitor.approvePermission(sessionId: session.sessionId)
             try? await Task.sleep(nanoseconds: 500_000_000)
-
-            // Send "Other" option index
+            // Send "Other" option (last + 1), then the text
             await sendOptionToTerminal(index: optionCount + 1)
-            // Wait for the "Other" prompt to appear, then type the text
             try? await Task.sleep(nanoseconds: 300_000_000)
-            await sendTextToTerminal(otherText)
+            await sendTextToTerminal(text)
         }
     }
 
