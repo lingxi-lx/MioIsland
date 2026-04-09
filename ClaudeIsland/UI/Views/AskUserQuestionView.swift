@@ -120,8 +120,11 @@ struct AskUserQuestionView: View {
                 optionRow(questionIndex: questionIndex, optionIndex: index + 1, option: option, optionCount: question.options.count)
             }
 
-            // Inline "Other" input — Claude Code always adds "Type something"
-            inlineOtherInput(questionIndex: questionIndex, optionCount: question.options.count)
+            // Inline "Other" input — only for single-question calls.
+            // Multi-question + Other is unreliable due to terminal interaction timing.
+            if context.questions.count == 1 {
+                inlineOtherInput(questionIndex: questionIndex, optionCount: question.options.count)
+            }
         }
     }
 
