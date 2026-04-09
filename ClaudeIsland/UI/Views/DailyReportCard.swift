@@ -99,11 +99,11 @@ struct DailyReportCard: View {
                         .foregroundColor(NotchMenuView.brandLime)
                     Text(L10n.analyzingTitle)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.92))
+                        .opacity(0.92)
                 }
                 Text(L10n.analyzingSubtitle)
                     .font(.system(size: 9))
-                    .foregroundColor(.white.opacity(0.55))
+                    .opacity(0.55)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 // Faint animated shimmer bar so the card shows it's "working"
@@ -219,17 +219,17 @@ struct DailyReportCard: View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
             Text(value)
                 .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(.white.opacity(0.95))
+                .opacity(0.95)
             Text(label)
                 .font(.system(size: 9))
-                .foregroundColor(.white.opacity(0.45))
+                .opacity(0.45)
         }
     }
 
     private var heroSeparator: some View {
         Text("·")
             .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.white.opacity(0.2))
+            .opacity(0.2)
             .padding(.horizontal, 6)
     }
 
@@ -248,7 +248,7 @@ struct DailyReportCard: View {
                             .foregroundColor(NotchMenuView.brandLime.opacity(0.75))
                         Text(item.1)
                             .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.7))
+                            .opacity(0.7)
                             .lineLimit(1)
                     }
                 }
@@ -294,7 +294,7 @@ struct DailyReportCard: View {
                 Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                     .font(.system(size: 8, weight: .semibold))
             }
-            .foregroundColor(.white.opacity(0.4))
+            .opacity(0.4)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -311,7 +311,7 @@ struct DailyReportCard: View {
                 .font(.system(size: 10, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(0.6)
-                .foregroundColor(.white.opacity(0.9))
+                .opacity(0.9)
             Spacer()
             segmentedControl
         }
@@ -337,7 +337,8 @@ struct DailyReportCard: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 9, weight: isActive ? .bold : .medium))
-                .foregroundColor(isActive ? .black : .white.opacity(0.6))
+                .foregroundColor(isActive ? .black : nil)
+                .opacity(isActive ? 1.0 : 0.6)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 3)
                 .background(
@@ -418,12 +419,12 @@ struct DailyReportCard: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(value)
                     .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.95))
+                    .opacity(0.95)
                 Text(label)
                     .font(.system(size: 8, weight: .medium))
                     .textCase(.uppercase)
                     .tracking(0.3)
-                    .foregroundColor(.white.opacity(0.45))
+                    .opacity(0.45)
             }
             Spacer(minLength: 0)
         }
@@ -475,11 +476,11 @@ struct DailyReportCard: View {
                 .foregroundColor(NotchMenuView.brandLime.opacity(0.75))
             Text(label)
                 .font(.system(size: 9))
-                .foregroundColor(.white.opacity(0.5))
+                .opacity(0.5)
             Spacer(minLength: 2)
             Text(value)
                 .font(.system(size: 9, weight: .semibold, design: .rounded))
-                .foregroundColor(.white.opacity(0.85))
+                .opacity(0.85)
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 4)
@@ -524,7 +525,7 @@ struct DailyReportCard: View {
                 .font(.system(size: 8, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(0.5)
-                .foregroundColor(.white.opacity(0.4))
+                .opacity(0.4)
             // Top-aligned so that a wrapping multi-line text (e.g. a long
             // list of Skills) doesn't push the icon to the middle.
             HStack(alignment: .top, spacing: 6) {
@@ -534,7 +535,7 @@ struct DailyReportCard: View {
                     .padding(.top, 1)
                 Text(text)
                     .font(.system(size: 10, design: monospaced ? .monospaced : .default))
-                    .foregroundColor(.white.opacity(0.8))
+                    .opacity(0.8)
                     // Allow wrapping: unbounded line count + fixedSize
                     // vertical so the Text reports its natural wrapped
                     // height to the layout system.
@@ -564,13 +565,13 @@ struct DailyReportCard: View {
                     .font(.system(size: 8, weight: .semibold))
                     .textCase(.uppercase)
                     .tracking(0.5)
-                    .foregroundColor(.white.opacity(0.4))
+                    .opacity(0.4)
                 Text("·")
                     .font(.system(size: 8))
-                    .foregroundColor(.white.opacity(0.2))
+                    .opacity(0.2)
                 Text("\(L10n.sparklineMaxPrefix) \(Self.formatMinutes(maxFocus))")
                     .font(.system(size: 8, weight: .medium))
-                    .foregroundColor(.white.opacity(0.55))
+                    .opacity(0.55)
                 Spacer(minLength: 0)
             }
             HStack(alignment: .bottom, spacing: 4) {
@@ -584,7 +585,7 @@ struct DailyReportCard: View {
                             .frame(height: max(2, CGFloat(ratio) * 30))
                         Text(Self.shortWeekdayLabel(for: day.date))
                             .font(.system(size: 7))
-                            .foregroundColor(.white.opacity(0.4))
+                            .opacity(0.4)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -598,14 +599,15 @@ struct DailyReportCard: View {
         HStack(spacing: 5) {
             Image(systemName: streak > 0 ? "flame.fill" : "flame")
                 .font(.system(size: 9))
-                .foregroundColor(streak > 0 ? NotchMenuView.brandLime : .white.opacity(0.35))
+                .foregroundColor(streak > 0 ? NotchMenuView.brandLime : nil)
+                .opacity(streak > 0 ? 1.0 : 0.35)
             Text(L10n.streakLabel)
                 .font(.system(size: 9))
-                .foregroundColor(.white.opacity(0.5))
+                .opacity(0.5)
             Spacer(minLength: 2)
             Text(L10n.streakDays(streak))
                 .font(.system(size: 9, weight: .semibold, design: .rounded))
-                .foregroundColor(streak > 0 ? .white.opacity(0.9) : .white.opacity(0.4))
+                .opacity(streak > 0 ? 0.9 : 0.4)
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 4)
@@ -644,7 +646,7 @@ struct DailyReportCard: View {
                     .font(.system(size: 8, weight: .semibold))
                     .textCase(.uppercase)
                     .tracking(0.5)
-                    .foregroundColor(.white.opacity(0.4))
+                    .opacity(0.4)
                 ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                     HStack(spacing: 5) {
                         Image(systemName: "sparkle")
@@ -652,7 +654,7 @@ struct DailyReportCard: View {
                             .foregroundColor(NotchMenuView.brandLime.opacity(0.8))
                         Text(line)
                             .font(.system(size: 10))
-                            .foregroundColor(.white.opacity(0.8))
+                            .opacity(0.8)
                             .lineLimit(1)
                         Spacer(minLength: 0)
                     }
@@ -675,7 +677,7 @@ struct DailyReportCard: View {
                 .font(.system(size: 8, weight: .semibold))
                 .textCase(.uppercase)
                 .tracking(0.5)
-                .foregroundColor(.white.opacity(0.4))
+                .opacity(0.4)
             HStack(spacing: 4) {
                 ForEach(Array(deltas.enumerated()), id: \.offset) { _, d in
                     deltaPill(label: d.0, now: d.1, prev: d.2)
@@ -695,7 +697,7 @@ struct DailyReportCard: View {
         return HStack(spacing: 3) {
             Text(label)
                 .font(.system(size: 8))
-                .foregroundColor(.white.opacity(0.5))
+                .opacity(0.5)
             Image(systemName: arrow)
                 .font(.system(size: 7, weight: .bold))
                 .foregroundColor(tint)
