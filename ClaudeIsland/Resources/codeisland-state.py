@@ -57,8 +57,8 @@ def send_event(state):
         sock.connect(SOCKET_PATH)
         sock.sendall(json.dumps(state).encode())
 
-        # For permission requests and question prompts, wait for response
-        if state.get("status") in ("waiting_for_approval", "waiting_for_question"):
+        # For permission requests, wait for response
+        if state.get("status") == "waiting_for_approval":
             response = sock.recv(4096)
             sock.close()
             if response:
@@ -101,39 +101,13 @@ def main():
         state["status"] = "processing"
 
     elif event == "PreToolUse":
-        tool_name = data.get("tool_name")
+        state["status"] = "running_tool"
+        state["tool"] = data.get("tool_name")
+        state["tool_input"] = tool_input
+        # Send tool_use_id to Swift for caching
         tool_use_id_from_event = data.get("tool_use_id")
-
-        if tool_name == "AskUserQuestion":
-            # Block and wait for Code Island to answer the question
-            state["status"] = "waiting_for_question"
-            state["tool"] = tool_name
-            state["tool_input"] = tool_input
-            if tool_use_id_from_event:
-                state["tool_use_id"] = tool_use_id_from_event
-
-            response = send_event(state)
-
-            if response and response.get("decision") == "answered":
-                output = {
-                    "hookSpecificOutput": {
-                        "hookEventName": "PreToolUse",
-                        "answers": response.get("answers", []),
-                    }
-                }
-                print(json.dumps(output))
-                sys.exit(0)
-
-            # No response, timeout, or decision == "skip" — let CLI handle
-            sys.exit(0)
-
-        else:
-            state["status"] = "running_tool"
-            state["tool"] = tool_name
-            state["tool_input"] = tool_input
-            # Send tool_use_id to Swift for caching
-            if tool_use_id_from_event:
-                state["tool_use_id"] = tool_use_id_from_event
+        if tool_use_id_from_event:
+            state["tool_use_id"] = tool_use_id_from_event
 
     elif event == "PostToolUse":
         state["status"] = "processing"

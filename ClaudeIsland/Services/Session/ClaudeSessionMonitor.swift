@@ -122,32 +122,12 @@ class ClaudeSessionMonitor: ObservableObject {
 
     // MARK: - Question Handling
 
-    func answerQuestion(sessionId: String, answers: [String: String]) {
-        Task {
-            guard let session = await SessionStore.shared.session(for: sessionId),
-                  let questionCtx = session.phase.questionContext else {
-                return
-            }
-
-            HookSocketServer.shared.respondToQuestion(
-                toolUseId: questionCtx.toolUseId,
-                answers: answers
-            )
-
-            await SessionStore.shared.process(
-                .questionAnswered(sessionId: sessionId, toolUseId: questionCtx.toolUseId, answers: answers)
-            )
-        }
-    }
-
     func skipQuestion(sessionId: String) {
         Task {
             guard let session = await SessionStore.shared.session(for: sessionId),
                   let questionCtx = session.phase.questionContext else {
                 return
             }
-
-            HookSocketServer.shared.skipQuestion(toolUseId: questionCtx.toolUseId)
 
             await SessionStore.shared.process(
                 .questionSkipped(sessionId: sessionId, toolUseId: questionCtx.toolUseId)

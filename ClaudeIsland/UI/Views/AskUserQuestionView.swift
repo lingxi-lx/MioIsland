@@ -2,7 +2,8 @@
 //  AskUserQuestionView.swift
 //  ClaudeIsland
 //
-//  Interactive UI for answering AskUserQuestion prompts from Claude Code
+//  Interactive UI for answering AskUserQuestion prompts from Claude Code.
+//  Sends the selected option index to the terminal via AppleScript / cmux.
 //
 
 import SwiftUI
@@ -11,16 +12,14 @@ struct AskUserQuestionView: View {
     let session: SessionState
     let context: QuestionContext
     @ObservedObject var sessionMonitor: ClaudeSessionMonitor
-
-    @State private var selections: [Int: Set<String>] = [:]
-    @State private var otherTexts: [Int: String] = [:]
-    @State private var showOther: [Int: Bool] = [:]
+    @State private var otherText: String = ""
+    @State private var showOther: Bool = false
+    @State private var hoveredIndex: Int? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             header
             questionsList
-            submitBar
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -31,162 +30,267 @@ struct AskUserQuestionView: View {
     private var header: some View {
         HStack {
             Text(session.projectName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(.white.opacity(0.5))
+                .notchFont(11, weight: .semibold)
+                .notchSecondaryForeground()
             Spacer()
-            Button(action: jumpToTerminal) {
-                HStack(spacing: 3) {
-                    Image(systemName: "terminal")
-                    Text("Terminal")
-                }
-                .font(.system(size: 10))
-                .foregroundColor(.white.opacity(0.5))
+            Button {
+                Task { await TerminalJumper.shared.jump(to: session) }
+            } label: {
+                Image(systemName: "terminal")
+                    .notchFont(9)
+                    .foregroundColor(TerminalColors.amber.opacity(0.5))
+                    .frame(width: 22, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(TerminalColors.amber.opacity(0.08))
+                    )
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
     }
 
-    // MARK: - Questions List
+    // MARK: - Questions
 
     private var questionsList: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 14) {
-                ForEach(Array(context.questions.enumerated()), id: \.offset) { index, question in
-                    questionBlock(index: index, question: question)
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(context.questions.enumerated()), id: \.offset) { _, question in
+                    questionBlock(question: question)
                 }
             }
         }
     }
 
     @ViewBuilder
-    private func questionBlock(index: Int, question: QuestionItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private func questionBlock(question: QuestionItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Question text
             Text(question.question)
-                .font(.system(size: 12, weight: .medium))
+                .notchFont(12, weight: .semibold)
                 .foregroundColor(.white.opacity(0.9))
+                .padding(.bottom, 2)
 
-            ChipFlowLayout(spacing: 6) {
-                ForEach(question.options, id: \.label) { option in
-                    chipButton(
-                        label: option.label,
-                        isSelected: selections[index]?.contains(option.label) == true,
-                        action: { toggleOption(index: index, label: option.label, multiSelect: question.multiSelect) }
-                    )
-                }
-                chipButton(
-                    label: "Other",
-                    isSelected: showOther[index] == true,
-                    action: {
-                        showOther[index] = !(showOther[index] ?? false)
-                        if showOther[index] == true {
-                            selections[index] = []
-                        }
-                    }
-                )
+            // Options — vertical list
+            ForEach(Array(question.options.enumerated()), id: \.offset) { index, option in
+                optionRow(index: index + 1, option: option)
             }
 
-            if let selected = selections[index]?.first,
-               let desc = question.options.first(where: { $0.label == selected })?.description {
-                Text(desc)
-                    .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.4))
-                    .padding(.leading, 2)
-            }
-
-            if showOther[index] == true {
-                TextField("Type your answer...", text: Binding(
-                    get: { otherTexts[index] ?? "" },
-                    set: { otherTexts[index] = $0 }
-                ))
-                .textFieldStyle(.plain)
-                .font(.system(size: 11, design: .monospaced))
-                .padding(6)
-                .background(Color.white.opacity(0.08))
-                .cornerRadius(6)
-            }
+            // "Other" row
+            otherRow(optionCount: question.options.count)
         }
     }
 
-    private func chipButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(isSelected ? TerminalColors.amber.opacity(0.3) : Color.white.opacity(0.08))
-                .foregroundColor(isSelected ? TerminalColors.amber : .white.opacity(0.7))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? TerminalColors.amber.opacity(0.5) : Color.clear, lineWidth: 1)
-                )
+    private func optionRow(index: Int, option: QuestionOption) -> some View {
+        Button {
+            DebugLogger.log("AskUser", "Option \(index) tapped: \(option.label)")
+            Task { await sendOptionToTerminal(index: index) }
+        } label: {
+            HStack(spacing: 8) {
+                Text("\(index)")
+                    .notchFont(10, weight: .bold)
+                    .foregroundColor(TerminalColors.amber)
+                    .frame(width: 18, height: 18)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(TerminalColors.amber.opacity(0.15))
+                    )
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(option.label)
+                        .notchFont(11, weight: .medium)
+                        .foregroundColor(.white.opacity(0.85))
+
+                    if let desc = option.description, !desc.isEmpty {
+                        Text(desc)
+                            .notchFont(9, weight: .regular)
+                            .foregroundColor(.white.opacity(0.35))
+                            .lineLimit(1)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.right")
+                    .notchFont(8)
+                    .foregroundColor(.white.opacity(hoveredIndex == index ? 0.5 : 0.15))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(hoveredIndex == index ? TerminalColors.amber.opacity(0.08) : Color.white.opacity(0.03))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(
+                                hoveredIndex == index ? TerminalColors.amber.opacity(0.2) : Color.white.opacity(0.06),
+                                lineWidth: 0.5
+                            )
+                    )
+            )
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { isHovered in
+            hoveredIndex = isHovered ? index : nil
+        }
     }
 
-    // MARK: - Submit Bar
+    private func otherRow(optionCount: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    showOther.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: showOther ? "chevron.down" : "chevron.right")
+                        .notchFont(8)
+                        .foregroundColor(TerminalColors.amber.opacity(0.5))
+                        .frame(width: 18, height: 18)
 
-    private var submitBar: some View {
-        HStack {
-            Spacer()
-            Button(action: submit) {
-                Text("Submit")
-                    .font(.system(size: 11, weight: .semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 5)
-                    .background(canSubmit ? TerminalColors.amber : Color.white.opacity(0.1))
-                    .foregroundColor(canSubmit ? .black : .white.opacity(0.3))
-                    .cornerRadius(8)
+                    Text("Other...")
+                        .notchFont(10, weight: .regular)
+                        .foregroundColor(.white.opacity(0.5))
+
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(!canSubmit)
-        }
-    }
 
-    // MARK: - Logic
+            if showOther {
+                HStack(spacing: 6) {
+                    TextField("Type your answer", text: $otherText)
+                        .textFieldStyle(.plain)
+                        .notchFont(11)
+                        .padding(6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.white.opacity(0.06))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 0.5)
+                                )
+                        )
+                        .onSubmit { submitOther(optionCount: optionCount) }
 
-    private var canSubmit: Bool {
-        for (index, _) in context.questions.enumerated() {
-            let hasSelection = !(selections[index] ?? []).isEmpty
-            let hasOther = !(otherTexts[index] ?? "").isEmpty && showOther[index] == true
-            if !hasSelection && !hasOther { return false }
-        }
-        return true
-    }
-
-    private func toggleOption(index: Int, label: String, multiSelect: Bool) {
-        showOther[index] = false
-        otherTexts[index] = nil
-
-        if multiSelect {
-            var current = selections[index] ?? []
-            if current.contains(label) {
-                current.remove(label)
-            } else {
-                current.insert(label)
-            }
-            selections[index] = current
-        } else {
-            selections[index] = [label]
-        }
-    }
-
-    private func submit() {
-        var answers: [String: String] = [:]
-        for (index, question) in context.questions.enumerated() {
-            if showOther[index] == true, let text = otherTexts[index], !text.isEmpty {
-                answers[question.question] = text
-            } else if let selected = selections[index] {
-                answers[question.question] = selected.joined(separator: ", ")
+                    Button {
+                        submitOther(optionCount: optionCount)
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(
+                                otherText.isEmpty
+                                    ? Color.white.opacity(0.15)
+                                    : TerminalColors.amber
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(otherText.isEmpty)
+                }
+                .padding(.horizontal, 8)
             }
         }
-        sessionMonitor.answerQuestion(sessionId: session.sessionId, answers: answers)
     }
 
-    private func jumpToTerminal() {
-        sessionMonitor.skipQuestion(sessionId: session.sessionId)
+    // MARK: - Terminal Sending
+
+    private func submitOther(optionCount: Int) {
+        guard !otherText.isEmpty else { return }
+        // "Other" is the last option in the list (optionCount + 1)
+        // Then type the custom text
+        DebugLogger.log("AskUser", "Other tapped, sending index \(optionCount + 1) + text")
         Task {
+            await sendOptionToTerminal(index: optionCount + 1)
+            // Small delay for the "Other" prompt to appear, then type the text
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            await sendTextToTerminal(otherText)
+        }
+    }
+
+    private func sendOptionToTerminal(index: Int) async {
+        let termApp = session.terminalApp?.lowercased() ?? ""
+
+        if termApp.contains("iterm") {
+            let script = """
+            tell application "iTerm2"
+                tell current session of current tab of current window
+                    write text "\(index)"
+                end tell
+            end tell
+            """
+            if runAppleScript(script) {
+                DebugLogger.log("AskUser", "Sent \(index) via iTerm2")
+                return
+            }
+        }
+
+        if termApp.contains("terminal") && !termApp.contains("wez") {
+            let script = """
+            tell application "Terminal"
+                do script "\(index)" in selected tab of front window
+            end tell
+            """
+            if runAppleScript(script) {
+                DebugLogger.log("AskUser", "Sent \(index) via Terminal.app")
+                return
+            }
+        }
+
+        guard CmuxTreeParser.isAvailable else {
+            DebugLogger.log("AskUser", "No supported terminal, jumping")
             await TerminalJumper.shared.jump(to: session)
+            return
+        }
+
+        let sent = CmuxTreeParser.sendText("\(index)\r", toCwd: session.cwd)
+        DebugLogger.log("AskUser", "Sent \(index) to cmux: \(sent)")
+    }
+
+    private func sendTextToTerminal(_ text: String) async {
+        let termApp = session.terminalApp?.lowercased() ?? ""
+        let escaped = text.replacingOccurrences(of: "\"", with: "\\\"")
+
+        if termApp.contains("iterm") {
+            let script = """
+            tell application "iTerm2"
+                tell current session of current tab of current window
+                    write text "\(escaped)"
+                end tell
+            end tell
+            """
+            if runAppleScript(script) { return }
+        }
+
+        if termApp.contains("terminal") && !termApp.contains("wez") {
+            let script = """
+            tell application "Terminal"
+                do script "\(escaped)" in selected tab of front window
+            end tell
+            """
+            if runAppleScript(script) { return }
+        }
+
+        if CmuxTreeParser.isAvailable {
+            _ = CmuxTreeParser.sendText("\(text)\r", toCwd: session.cwd)
+        }
+    }
+
+    private func runAppleScript(_ script: String) -> Bool {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            process.waitUntilExit()
+            return process.terminationStatus == 0
+        } catch {
+            return false
         }
     }
 }
