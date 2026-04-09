@@ -13,7 +13,7 @@ struct AskUserQuestionView: View {
     let context: QuestionContext
     @ObservedObject var sessionMonitor: ClaudeSessionMonitor
     @State private var customText: String = ""
-    @State private var hoveredIndex: Int? = nil
+    @State private var hoveredKey: String? = nil  // "questionIdx-optionIdx" to scope hover per question
     @State private var isSending: Bool = false
     @State private var answeredCount: Int = 0
 
@@ -33,8 +33,8 @@ struct AskUserQuestionView: View {
             // Questions + options
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 12) {
-                    ForEach(Array(context.questions.enumerated()), id: \.offset) { _, question in
-                        questionBlock(question: question)
+                    ForEach(Array(context.questions.enumerated()), id: \.offset) { qIdx, question in
+                        questionBlock(questionIndex: qIdx, question: question)
                     }
                 }
                 .padding(.horizontal, 12)
@@ -42,10 +42,13 @@ struct AskUserQuestionView: View {
 
             Spacer(minLength: 4)
 
-            // Custom text input
-            customInputBar
-                .padding(.horizontal, 12)
-                .padding(.bottom, 6)
+            // Custom text input — only show for questions with 3+ options
+            // (simple 2-option questions like Submit/Cancel don't need custom text)
+            if hasCustomTextOption {
+                customInputBar
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+            }
 
             // Jump to terminal — bottom, full width
             jumpToTerminalButton
@@ -56,7 +59,7 @@ struct AskUserQuestionView: View {
         .onChange(of: context.toolUseId) { _ in
             isSending = false
             customText = ""
-            hoveredIndex = nil
+            hoveredKey = nil
             answeredCount = 0
         }
     }
@@ -64,7 +67,7 @@ struct AskUserQuestionView: View {
     // MARK: - Question Block
 
     @ViewBuilder
-    private func questionBlock(question: QuestionItem) -> some View {
+    private func questionBlock(questionIndex: Int, question: QuestionItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(question.question)
                 .notchFont(12, weight: .semibold)
@@ -72,20 +75,23 @@ struct AskUserQuestionView: View {
                 .padding(.bottom, 2)
 
             ForEach(Array(question.options.enumerated()), id: \.offset) { index, option in
-                optionRow(index: index + 1, option: option, optionCount: question.options.count)
+                optionRow(questionIndex: questionIndex, optionIndex: index + 1, option: option, optionCount: question.options.count)
             }
         }
     }
 
-    private func optionRow(index: Int, option: QuestionOption, optionCount: Int) -> some View {
-        Button {
+    private func optionRow(questionIndex: Int, optionIndex: Int, option: QuestionOption, optionCount: Int) -> some View {
+        let hoverKey = "\(questionIndex)-\(optionIndex)"
+        let isHovered = hoveredKey == hoverKey
+
+        return Button {
             guard !isSending else { return }
             isSending = true
-            DebugLogger.log("AskUser", "Option \(index) tapped: \(option.label)")
-            Task { await approveAndSendOption(index: index) }
+            DebugLogger.log("AskUser", "Option \(optionIndex) tapped: \(option.label)")
+            Task { await approveAndSendOption(index: optionIndex) }
         } label: {
             HStack(spacing: 8) {
-                Text("\(index)")
+                Text("\(optionIndex)")
                     .notchFont(10, weight: .bold)
                     .foregroundColor(TerminalColors.amber)
                     .frame(width: 18, height: 18)
@@ -111,17 +117,17 @@ struct AskUserQuestionView: View {
 
                 Image(systemName: "arrow.right")
                     .notchFont(8)
-                    .foregroundColor(.white.opacity(hoveredIndex == index ? 0.5 : 0.15))
+                    .foregroundColor(.white.opacity(isHovered ? 0.5 : 0.15))
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(hoveredIndex == index ? TerminalColors.amber.opacity(0.08) : Color.white.opacity(0.03))
+                    .fill(isHovered ? TerminalColors.amber.opacity(0.08) : Color.white.opacity(0.03))
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
                             .strokeBorder(
-                                hoveredIndex == index ? TerminalColors.amber.opacity(0.2) : Color.white.opacity(0.06),
+                                isHovered ? TerminalColors.amber.opacity(0.2) : Color.white.opacity(0.06),
                                 lineWidth: 0.5
                             )
                     )
@@ -129,8 +135,8 @@ struct AskUserQuestionView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovered in
-            hoveredIndex = isHovered ? index : nil
+        .onHover { hovering in
+            hoveredKey = hovering ? hoverKey : nil
         }
     }
 
@@ -195,6 +201,12 @@ struct AskUserQuestionView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    /// Whether any question has enough options to warrant a custom text input.
+    /// Claude Code adds "Type something" for questions with 3+ options.
+    private var hasCustomTextOption: Bool {
+        context.questions.contains { $0.options.count >= 3 }
     }
 
     // MARK: - Terminal Sending
