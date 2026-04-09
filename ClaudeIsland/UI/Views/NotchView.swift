@@ -203,6 +203,7 @@ struct NotchView: View {
             // Outer container does NOT receive hits - only the notch content does
             VStack(spacing: 0) {
                 notchLayout
+                    .notchPalette()
                     .frame(
                         maxWidth: viewModel.status == .opened ? notchSize.width : closedContentWidth,
                         alignment: .top
@@ -381,8 +382,8 @@ struct NotchView: View {
                 }
             } label: {
                 Image(systemName: viewModel.contentType == .menu ? "xmark" : "line.3.horizontal")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.4))
+                    .notchFont(11, weight: .medium)
+                    .notchSecondaryForeground()
                     .frame(width: 22, height: 22)
                     .contentShape(Rectangle())
             }
@@ -824,14 +825,14 @@ struct CollapsedNotchContent: View {
                 // Project name — hidden in compact mode
                 if !compactMode, let parts = activityTextParts {
                     Text(parts.project)
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.6))
+                        .notchFont(13, weight: .medium, design: .monospaced)
+                        .notchSecondaryForeground()
                         .lineLimit(1)
                 }
 
                 if activeSessionCount > 0 {
                     Text("\u{00D7}\(activeSessionCount)")
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .notchFont(13, weight: .medium, design: .monospaced)
                         .foregroundColor(badgeColor)
                 }
             }
@@ -892,18 +893,18 @@ struct CollapsedNotchContent: View {
         if isWorkingStatus, let label = statusLabelWithoutDots {
             HStack(spacing: 0) {
                 Text(label)
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .notchFont(13, weight: .medium, design: .monospaced)
                     .foregroundStyle(statusGradient)
                     .lineLimit(1)
 
                 AnimatedEllipsis()
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .notchFont(13, weight: .medium, design: .monospaced)
                     .foregroundStyle(statusGradient)
 
             }
         } else if let parts = activityTextParts {
             Text(parts.status)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .notchFont(13, weight: .medium, design: .monospaced)
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
 
@@ -916,7 +917,7 @@ struct CollapsedNotchContent: View {
            let title = session.firstUserMessage ?? session.conversationInfo.summary {
             let truncated = title.count > 24 ? String(title.prefix(24)) + "\u{2026}" : title
             Text(truncated)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .notchFont(13, weight: .medium, design: .monospaced)
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
 
@@ -943,7 +944,7 @@ struct CollapsedNotchContent: View {
     private var carouselToolAction: some View {
         if let label = toolActionLabel {
             Text(label)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .notchFont(13, weight: .medium, design: .monospaced)
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
 
@@ -961,13 +962,13 @@ struct CollapsedNotchContent: View {
                 ? session.projectName
                 : "\(session.projectName) \u{00B7} \(duration)"
             Text(display)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .notchFont(13, weight: .medium, design: .monospaced)
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
 
         } else if let parts = activityTextParts {
             Text(parts.project)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .notchFont(13, weight: .medium, design: .monospaced)
                 .foregroundStyle(statusGradient)
                 .lineLimit(1)
 
@@ -1038,8 +1039,8 @@ struct CollapsedNotchContent: View {
 
             if showOverflow {
                 Text("+\(totalActive - 7)")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.5))
+                    .notchFont(11, weight: .medium, design: .monospaced)
+                    .notchSecondaryForeground()
                     .padding(.leading, 1)
             }
         }
@@ -1066,8 +1067,8 @@ struct ScrollingTextView: View {
             let availableWidth = geo.size.width
 
             Text(text)
-                .font(.system(size: 13, weight: .regular, design: .monospaced))
-                .foregroundColor(.white.opacity(0.5))
+                .notchFont(13, weight: .regular, design: .monospaced)
+                .notchSecondaryForeground()
                 .lineLimit(1)
 
                 .background(
