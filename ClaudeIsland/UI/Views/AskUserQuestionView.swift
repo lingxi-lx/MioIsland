@@ -226,13 +226,28 @@ struct AskUserQuestionView: View {
     private func sendToTerminal(_ text: String) async {
         let termApp = session.terminalApp?.lowercased() ?? ""
 
-        // cmux: use native input text API (System Events keystroke doesn't work)
+        // cmux: use perform action "text:" (simulates keyboard input, no paste echo)
         if termApp.contains("cmux") {
-            if CmuxTreeParser.isAvailable {
-                let sent = CmuxTreeParser.sendText("\(text)\r", toCwd: session.cwd)
-                DebugLogger.log("AskUser", "Sent to cmux: \(sent)")
+            let escapedText = text.replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+            let escapedCwd = session.cwd.replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
+            let script = """
+            tell application "cmux"
+                set targetTerm to (first terminal whose working directory is "\(escapedCwd)")
+                perform action "text:\(escapedText)" on targetTerm
+                perform action "text:\\n" on targetTerm
+            end tell
+            """
+            if runAppleScript(script) {
+                DebugLogger.log("AskUser", "Sent to cmux via perform action")
                 return
             }
+            DebugLogger.log("AskUser", "cmux perform action failed, trying input text")
+            // Fallback to input text
+            let sent = CmuxTreeParser.sendText("\(text)\r", toCwd: session.cwd)
+            DebugLogger.log("AskUser", "Sent to cmux input text: \(sent)")
+            return
         }
 
         // Other terminals: System Events keystroke (no echo)
