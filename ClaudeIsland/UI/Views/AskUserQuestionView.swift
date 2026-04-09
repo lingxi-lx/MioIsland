@@ -51,6 +51,12 @@ struct AskUserQuestionView: View {
                 .padding(.horizontal, 12)
                 .padding(.bottom, 8)
         }
+        // Reset state when a new question arrives (different toolUseId)
+        .onChange(of: context.toolUseId) { _ in
+            isSending = false
+            customText = ""
+            hoveredIndex = nil
+        }
     }
 
     // MARK: - Question Block
