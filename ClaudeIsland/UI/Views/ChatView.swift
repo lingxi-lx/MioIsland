@@ -26,6 +26,7 @@ struct ChatView: View {
     @State private var previousHistoryCount: Int = 0
     @State private var isBottomVisible: Bool = true
     @FocusState private var isInputFocused: Bool
+    @ObservedObject private var notchStore: NotchCustomizationStore = .shared
 
     init(sessionId: String, initialSession: SessionState, sessionMonitor: ClaudeSessionMonitor, viewModel: NotchViewModel) {
         self.sessionId = sessionId
@@ -272,8 +273,13 @@ struct ChatView: View {
 
     // MARK: - Message List
 
-    /// Background color for fade gradients
-    private let fadeColor = Color(red: 0.00, green: 0.00, blue: 0.00)
+    /// Background color for fade gradients at the top and bottom of
+    /// the message list — matches the current theme's palette.bg so
+    /// the gradient fades into the live background color instead of
+    /// hard black (which looked wrong on Sunset / Paper / Mint).
+    private var fadeColor: Color {
+        NotchPalette.for(notchStore.customization.theme).bg
+    }
 
     private var messageList: some View {
         ScrollViewReader { proxy in
