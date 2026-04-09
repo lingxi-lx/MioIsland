@@ -15,6 +15,7 @@ struct AskUserQuestionView: View {
     @State private var otherText: String = ""
     @State private var showOther: Bool = false
     @State private var hoveredIndex: Int? = nil
+    @State private var isSending: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -83,8 +84,10 @@ struct AskUserQuestionView: View {
 
     private func optionRow(index: Int, option: QuestionOption) -> some View {
         Button {
+            guard !isSending else { return }
+            isSending = true
             DebugLogger.log("AskUser", "Option \(index) tapped: \(option.label)")
-            Task { await sendOptionToTerminal(index: index) }
+            Task { await approveAndSendOption(index: index) }
         } label: {
             HStack(spacing: 8) {
                 Text("\(index)")
@@ -198,14 +201,31 @@ struct AskUserQuestionView: View {
 
     // MARK: - Terminal Sending
 
+    /// Approve the PermissionRequest first, wait for Claude Code to show
+    /// the AskUserQuestion CLI UI, then send the option number.
+    private func approveAndSendOption(index: Int) async {
+        // Step 1: Approve the pending permission so Claude Code starts AskUserQuestion
+        sessionMonitor.approvePermission(sessionId: session.sessionId)
+
+        // Step 2: Wait for Claude Code to execute AskUserQuestion and render CLI options
+        try? await Task.sleep(nanoseconds: 500_000_000) // 500ms
+
+        // Step 3: Send the option number to the terminal
+        await sendOptionToTerminal(index: index)
+    }
+
     private func submitOther(optionCount: Int) {
-        guard !otherText.isEmpty else { return }
-        // "Other" is the last option in the list (optionCount + 1)
-        // Then type the custom text
+        guard !otherText.isEmpty, !isSending else { return }
+        isSending = true
         DebugLogger.log("AskUser", "Other tapped, sending index \(optionCount + 1) + text")
         Task {
+            // Approve permission first
+            sessionMonitor.approvePermission(sessionId: session.sessionId)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+
+            // Send "Other" option index
             await sendOptionToTerminal(index: optionCount + 1)
-            // Small delay for the "Other" prompt to appear, then type the text
+            // Wait for the "Other" prompt to appear, then type the text
             try? await Task.sleep(nanoseconds: 300_000_000)
             await sendTextToTerminal(otherText)
         }
