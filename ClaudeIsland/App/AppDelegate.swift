@@ -74,6 +74,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         screenObserver = nil
     }
 
+    // Handle codeisland:// URL scheme for license activation
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            LicenseManager.shared.handleURL(url)
+        }
+    }
+
     // Allow notifications to show even when app is in foreground
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
