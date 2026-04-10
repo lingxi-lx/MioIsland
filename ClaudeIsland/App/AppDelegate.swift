@@ -53,6 +53,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             self?.handleScreenChange()
         }
 
+        // Load installed plugins from ~/.config/codeisland/plugins/
+        PluginManager.shared.loadAll()
+
         // Initialize CodeLight sync (connects to server if configured)
         _ = SyncManager.shared
 
