@@ -12,6 +12,16 @@
 import CoreGraphics
 import Foundation
 
+/// Per-screen geometry settings. Keyed by screen's CGDirectDisplayID
+/// in NotchCustomization.screenGeometries.
+struct ScreenGeometry: Codable, Equatable {
+    var maxWidth: CGFloat = 440
+    var horizontalOffset: CGFloat = 0
+    var notchHeight: CGFloat = 38
+
+    static let `default` = ScreenGeometry()
+}
+
 struct NotchCustomization: Codable, Equatable {
     // Appearance
     var theme: NotchThemeID
@@ -21,13 +31,9 @@ struct NotchCustomization: Codable, Equatable {
     var showBuddy: Bool
     var showUsageBar: Bool
 
-    // Geometry — all user-controlled via live edit mode.
-    /// Upper bound for auto-expand. Idle content shrinks below this;
-    /// long content expands up to this and truncates beyond.
-    var maxWidth: CGFloat
-    /// Signed horizontal offset from the screen's center (pinned to top).
-    /// Render-time clamped; stored value preserved for later screen changes.
-    var horizontalOffset: CGFloat
+    // Per-screen geometry
+    var screenGeometries: [String: ScreenGeometry] = [:]
+    var defaultGeometry: ScreenGeometry = .init()
 
     // Hardware notch override
     var hardwareNotchMode: HardwareNotchMode
@@ -37,20 +43,28 @@ struct NotchCustomization: Codable, Equatable {
         fontScale: FontScale = .default,
         showBuddy: Bool = true,
         showUsageBar: Bool = true,
-        maxWidth: CGFloat = 440,
-        horizontalOffset: CGFloat = 0,
         hardwareNotchMode: HardwareNotchMode = .auto
     ) {
         self.theme = theme
         self.fontScale = fontScale
         self.showBuddy = showBuddy
         self.showUsageBar = showUsageBar
-        self.maxWidth = maxWidth
-        self.horizontalOffset = horizontalOffset
         self.hardwareNotchMode = hardwareNotchMode
     }
 
     static let `default` = NotchCustomization()
+
+    // MARK: - Per-screen geometry helpers
+
+    func geometry(for screenID: String) -> ScreenGeometry {
+        screenGeometries[screenID] ?? defaultGeometry
+    }
+
+    mutating func updateGeometry(for screenID: String, _ body: (inout ScreenGeometry) -> Void) {
+        var geo = geometry(for: screenID)
+        body(&geo)
+        screenGeometries[screenID] = geo
+    }
 
     // MARK: - Forward-compat Codable
     //
@@ -62,7 +76,8 @@ struct NotchCustomization: Codable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case theme, fontScale, showBuddy, showUsageBar,
-             maxWidth, horizontalOffset, hardwareNotchMode
+             hardwareNotchMode, screenGeometries, defaultGeometry,
+             maxWidth, horizontalOffset // legacy keys for migration
     }
 
     init(from decoder: Decoder) throws {
@@ -71,9 +86,28 @@ struct NotchCustomization: Codable, Equatable {
         self.fontScale = try c.decodeIfPresent(FontScale.self, forKey: .fontScale) ?? .default
         self.showBuddy = try c.decodeIfPresent(Bool.self, forKey: .showBuddy) ?? true
         self.showUsageBar = try c.decodeIfPresent(Bool.self, forKey: .showUsageBar) ?? true
-        self.maxWidth = try c.decodeIfPresent(CGFloat.self, forKey: .maxWidth) ?? 440
-        self.horizontalOffset = try c.decodeIfPresent(CGFloat.self, forKey: .horizontalOffset) ?? 0
         self.hardwareNotchMode = try c.decodeIfPresent(HardwareNotchMode.self, forKey: .hardwareNotchMode) ?? .auto
+        self.screenGeometries = try c.decodeIfPresent([String: ScreenGeometry].self, forKey: .screenGeometries) ?? [:]
+        self.defaultGeometry = try c.decodeIfPresent(ScreenGeometry.self, forKey: .defaultGeometry) ?? .init()
+
+        // Legacy migration: old top-level geometry fields -> defaultGeometry
+        if let legacyWidth = try c.decodeIfPresent(CGFloat.self, forKey: .maxWidth) {
+            self.defaultGeometry.maxWidth = legacyWidth
+        }
+        if let legacyOffset = try c.decodeIfPresent(CGFloat.self, forKey: .horizontalOffset) {
+            self.defaultGeometry.horizontalOffset = legacyOffset
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(theme, forKey: .theme)
+        try c.encode(fontScale, forKey: .fontScale)
+        try c.encode(showBuddy, forKey: .showBuddy)
+        try c.encode(showUsageBar, forKey: .showUsageBar)
+        try c.encode(hardwareNotchMode, forKey: .hardwareNotchMode)
+        try c.encode(screenGeometries, forKey: .screenGeometries)
+        try c.encode(defaultGeometry, forKey: .defaultGeometry)
     }
 }
 
