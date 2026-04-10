@@ -62,16 +62,16 @@ struct NotchCustomizationSettingsView: View {
     private var themeRow: some View {
         controlRow(icon: "paintpalette", label: L10n.notchTheme) {
             Menu {
-                ForEach(NotchThemeID.allCases) { id in
+                ForEach(ThemeRegistry.shared.themes) { theme in
                     Button {
-                        store.update { $0.theme = id }
+                        store.update { $0.theme = theme.id }
                     } label: {
                         Label {
-                            Text(L10n.notchThemeName(id))
+                            Text(L10n.notchThemeName(theme.id))
                         } icon: {
-                            Circle().fill(NotchPalette.for(id).bg)
+                            Circle().fill(theme.palette.bg)
                         }
-                        .accessibilityLabel("\(L10n.notchThemeName(id)) theme")
+                        .accessibilityLabel("\(L10n.notchThemeName(theme.id)) theme")
                     }
                 }
             } label: {
