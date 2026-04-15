@@ -37,6 +37,13 @@ echo ">>> Setting version to $CLEAN_VERSION..."
 sed -i '' "s/MARKETING_VERSION = [0-9.]*/MARKETING_VERSION = $CLEAN_VERSION/g" \
   "$PROJECT_DIR/ClaudeIsland.xcodeproj/project.pbxproj"
 
+# Auto-increment build number
+OLD_BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION = ' "$PROJECT_DIR/ClaudeIsland.xcodeproj/project.pbxproj" | grep -oE '[0-9]+')
+NEW_BUILD=$((OLD_BUILD + 1))
+echo ">>> Bumping build number $OLD_BUILD → $NEW_BUILD..."
+sed -i '' "s/CURRENT_PROJECT_VERSION = $OLD_BUILD;/CURRENT_PROJECT_VERSION = $NEW_BUILD;/g" \
+  "$PROJECT_DIR/ClaudeIsland.xcodeproj/project.pbxproj"
+
 # 2. Build (unsigned, universal)
 #
 # ARCHS + ONLY_ACTIVE_ARCH are critical: xcodebuild defaults to building
@@ -152,7 +159,8 @@ cat > "$APPCAST_PATH" << APPCAST_EOF
     <item>
       <title>Mio Island $CLEAN_VERSION</title>
       <pubDate>$(date -R)</pubDate>
-      <sparkle:version>$CLEAN_VERSION</sparkle:version>
+      <sparkle:version>$NEW_BUILD</sparkle:version>
+      <sparkle:shortVersionString>$CLEAN_VERSION</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
       <enclosure
         url="$DOWNLOAD_URL"
