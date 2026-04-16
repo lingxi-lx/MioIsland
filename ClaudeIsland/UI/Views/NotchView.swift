@@ -309,10 +309,8 @@ struct NotchView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             sessionMonitor.startMonitoring()
-            // Non-notched devices need a visible target since there's no physical notch to hover over
-            if !viewModel.hasPhysicalNotch {
-                isVisible = true
-            }
+            // Always show notch (standby state shows even with no sessions)
+            isVisible = true
         }
         .onChange(of: viewModel.status) { oldStatus, newStatus in
             handleStatusChange(from: oldStatus, to: newStatus)
@@ -520,13 +518,8 @@ struct NotchView: View {
                 viewModel.showQuestion(for: questionSession)
             }
         case .closed:
-            // Non-notched devices stay visible (no physical anchor to hover back)
-            guard viewModel.hasPhysicalNotch else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                if viewModel.status == .closed && !hasActiveSessions && !activityCoordinator.expandingActivity.show {
-                    isVisible = false
-                }
-            }
+            // Always remain visible — standby content shows even with no sessions
+            break
         }
     }
 
