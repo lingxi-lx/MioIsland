@@ -215,6 +215,15 @@ struct NotchView: View {
     private let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
     private let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
 
+    /// While in Live Edit, the closed notch is pinned to the exact
+    /// configured width/height so the ◀▶/▲▼ arrows produce visible,
+    /// WYSIWYG feedback even when there is no active session content
+    /// to fill the expansion wings. Outside edit mode, the notch keeps
+    /// its content-hugging behavior — no always-on black bar. (Issue #30)
+    private var forceClosedPreviewSize: Bool {
+        notchStore.isEditing && viewModel.status != .opened
+    }
+
     /// User-customized horizontal offset of the notch, clamped at
     /// render time so an off-screen stored value on a smaller
     /// secondary display never bleeds past the edge. Spec 5.5.
@@ -236,7 +245,9 @@ struct NotchView: View {
                 notchLayout
                     .notchPalette()
                     .frame(
+                        minWidth: forceClosedPreviewSize ? closedContentWidth : nil,
                         maxWidth: viewModel.status == .opened ? notchSize.width : closedContentWidth,
+                        minHeight: forceClosedPreviewSize ? closedNotchSize.height : nil,
                         alignment: .top
                     )
                     .padding(
@@ -258,8 +269,12 @@ struct NotchView: View {
                     }
                     .shadow(color: notchShadowColor, radius: notchShadowRadius)
                     .frame(
+                        minWidth: forceClosedPreviewSize ? closedContentWidth : nil,
                         maxWidth: viewModel.status == .opened ? notchSize.width : closedContentWidth,
-                        maxHeight: viewModel.status == .opened ? notchSize.height : nil,
+                        minHeight: forceClosedPreviewSize ? closedNotchSize.height : nil,
+                        maxHeight: viewModel.status == .opened
+                            ? notchSize.height
+                            : (forceClosedPreviewSize ? closedNotchSize.height : nil),
                         alignment: .top
                     )
                     .animation(viewModel.status == .opened ? openAnimation : closeAnimation, value: viewModel.status)
