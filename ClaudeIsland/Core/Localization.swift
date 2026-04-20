@@ -213,7 +213,6 @@ enum L10n {
     static var pairPanelConnecting: String { tr("Connecting…", "连接中…") }
     static var pairPanelStepServerTitle: String { tr("Step 1 · Configure Server", "第 1 步 · 配置服务器") }
     static var pairPanelStepServerBody: String { tr("Set your CodeLight relay server. Your messages sync through it end-to-end encrypted — the server never sees plaintext. Without this step, the QR code cannot be generated.", "先设置一个 CodeLight 中继服务器。你的消息会通过它端到端加密同步 —— 服务端看不到明文。没配好这一步，下面的二维码不会生成。") }
-    static var pairPanelStepServerHint: String { tr("Use your self-hosted server, or the official free server island.wdao.chat", "可以填你自建的服务器，或用官方免费服务器 island.wdao.chat") }
     static var pairPanelServerPlaceholder: String { tr("https://your-server.example", "https://你的服务器.example") }
     static var pairPanelSaveAndConnect: String { tr("Save and Connect", "保存并连接") }
     static var pairPanelChangeServer: String { tr("Change Server", "更换服务器") }

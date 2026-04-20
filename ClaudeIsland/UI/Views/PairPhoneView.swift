@@ -706,17 +706,11 @@ struct PairPhonePanelView: View {
                 .disabled(!isValidDraft || isSavingServer)
             }
 
-            VStack(spacing: 4) {
-                Text(L10n.pairPanelStepServerHint)
-                    .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.55))
-                    .multilineTextAlignment(.center)
-                Text(L10n.pairPanelStoredLocally)
-                    .font(.system(size: 10))
-                    .foregroundColor(.white.opacity(0.4))
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 12)
+            Text(L10n.pairPanelStoredLocally)
+                .font(.system(size: 10))
+                .foregroundColor(.white.opacity(0.4))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 12)
             .padding(.top, 2)
         }
         .padding(18)
