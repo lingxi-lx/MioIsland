@@ -594,31 +594,43 @@ struct NotchView: View {
             // Get the sessions that just entered waitingForInput
             let newlyWaitingSessions = waitingForInputSessions.filter { newWaitingIds.contains($0.stableId) }
 
-            // Play notification sound if the session is not actively focused
-            if let soundName = AppSettings.notificationSound.soundName {
-                // Check if we should play sound (async check for tmux pane focus)
-                Task {
-                    let shouldPlaySound = await shouldPlayNotificationSound(for: newlyWaitingSessions)
-                    if shouldPlaySound {
-                        await MainActor.run {
-                            NSSound(named: soundName)?.play()
+            // Q1: Codex sessions stay silent (no bounce / no sound / no auto-popup)
+            // unless the user explicitly opts in. Reason: Codex turns are short and
+            // claude-mem–like short-lived child sessions end up triggering constant
+            // feedback for things the user didn't initiate.
+            let codexNotifyOnComplete = UserDefaults.standard.object(forKey: "codexNotifyOnComplete") as? Bool ?? false
+            let notifiableSessions = newlyWaitingSessions.filter { session in
+                session.codexTranscriptPath == nil || codexNotifyOnComplete
+            }
+
+            if !notifiableSessions.isEmpty {
+                // Play notification sound if the session is not actively focused
+                if let soundName = AppSettings.notificationSound.soundName {
+                    // Check if we should play sound (async check for tmux pane focus)
+                    Task {
+                        let shouldPlaySound = await shouldPlayNotificationSound(for: notifiableSessions)
+                        if shouldPlaySound {
+                            await MainActor.run {
+                                NSSound(named: soundName)?.play()
+                            }
                         }
+                    }
+                }
+
+                // Trigger bounce animation to get user's attention
+                DispatchQueue.main.async {
+                    isBouncing = true
+                    // Bounce back after a short delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        isBouncing = false
                     }
                 }
             }
 
-            // Trigger bounce animation to get user's attention
-            DispatchQueue.main.async {
-                isBouncing = true
-                // Bounce back after a short delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    isBouncing = false
-                }
-            }
-
             // Auto-popup: if a session transitioned FROM processing/compacting TO waitingForInput,
-            // expand the notch and show that session's chat after a 1-second delay
-            let sessionsFromWorkingState = newlyWaitingSessions.filter { session in
+            // expand the notch and show that session's chat after a 1-second delay.
+            // Uses notifiableSessions so a silent Codex turn won't pop.
+            let sessionsFromWorkingState = notifiableSessions.filter { session in
                 guard let prevPhase = previousPhases[session.stableId] else { return false }
                 return prevPhase == .processing || prevPhase == .compacting
             }

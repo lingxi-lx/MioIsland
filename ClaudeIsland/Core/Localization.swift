@@ -181,6 +181,7 @@ enum L10n {
     static var hookDiagCleanupDone: String { tr("Legacy hooks cleaned.", "已清理遗留 hooks。") }
     static var hookDiagNothingToClean: String { tr("No legacy hooks found.", "没有遗留 hooks。") }
     static var codexSupport: String { tr("Codex Support", "Codex 支持") }
+    static var codexNotifyOnComplete: String { tr("Codex Notifications", "Codex 通知") }
     static var accessibility: String { tr("Accessibility", "辅助功能") }
     static var version: String { tr("Version", "版本") }
     static var checkForUpdates: String { tr("Check for Updates", "检查更新") }

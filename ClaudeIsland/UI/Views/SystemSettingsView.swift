@@ -1055,6 +1055,7 @@ private struct BehaviorTab: View {
     @AppStorage("autoCollapseOnMouseLeave") private var autoCollapseOnMouseLeave: Bool = true
     @AppStorage("compactCollapsed") private var compactCollapsed: Bool = false
     @AppStorage("autoExpandOnComplete") private var autoExpandOnComplete: Bool = true
+    @AppStorage("codexNotifyOnComplete") private var codexNotifyOnComplete: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -1064,6 +1065,7 @@ private struct BehaviorTab: View {
                     TabToggle(icon: "rectangle.compress.vertical", label: L10n.autoCollapseOnMouseLeave, isOn: autoCollapseOnMouseLeave) { autoCollapseOnMouseLeave.toggle() }
                     TabToggle(icon: "rectangle.arrowtriangle.2.inward", label: L10n.compactCollapsed, isOn: compactCollapsed) { compactCollapsed.toggle() }
                     TabToggle(icon: "rectangle.expand.vertical", label: L10n.autoExpandOnComplete, isOn: autoExpandOnComplete) { autoExpandOnComplete.toggle() }
+                    TabToggle(icon: "bell.badge", label: L10n.codexNotifyOnComplete, isOn: codexNotifyOnComplete) { codexNotifyOnComplete.toggle() }
                 }
             }
         }
