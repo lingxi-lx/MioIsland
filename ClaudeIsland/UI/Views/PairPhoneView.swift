@@ -551,7 +551,11 @@ struct PairPhonePanelView: View {
                 }
             }
             .padding(.horizontal, 24)
-            .padding(.vertical, 16)
+            // Top inset ~44pt keeps content clear of the floating back
+            // button pill (PluginContentView overlays it at top-left).
+            // Bottom stays at the spec 16pt.
+            .padding(.top, 44)
+            .padding(.bottom, 16)
             .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

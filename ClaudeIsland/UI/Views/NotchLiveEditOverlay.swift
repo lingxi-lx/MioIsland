@@ -57,15 +57,13 @@ struct NotchLiveEditOverlay: View {
     private let neonGreen = Color(hex: "CAFF00")
     private let neonPink  = Color(hex: "FB7185")
 
-    /// Approximate visible notch height. The hardware notch is
-    /// ~37pt; in opened state the panel is much taller, but for
-    /// edit-mode visuals (dashed border + drag-catcher) we anchor
-    /// to the closed-state height so the interactive region matches
-    /// the resting visual.
+    /// Visible notch height used for the edit-mode dashed border,
+    /// drag-catcher, and arrow anchor points. Always tracks the
+    /// user-set `geo.notchHeight` — even on hardware-notched
+    /// MacBooks, the software Mio Island can be taller or shorter
+    /// than the physical camera cutout, so the editor must reflect
+    /// the user's change rather than pinning to a hardcoded 38.
     private var visibleNotchHeight: CGFloat {
-        if hasHardwareNotch {
-            return 38
-        }
         let geo = store.customization.geometry(for: screenID)
         return NotchHardwareDetector.clampedHeight(geo.notchHeight)
     }
@@ -338,20 +336,22 @@ struct NotchLiveEditOverlay: View {
     }
 
     private func heightArrowButton(direction: Int, label: String) -> some View {
+        // Always enabled — even on hardware-notched MacBooks, the
+        // software Mio Island can be taller or shorter than the
+        // physical camera cutout, so users get to pick.
         Button {
             applyHeightStep(direction: direction)
         } label: {
             Image(systemName: direction > 0 ? "chevron.down" : "chevron.up")
                 .font(.system(size: 14, weight: .bold))
-                .foregroundColor(hasHardwareNotch ? .white.opacity(0.35) : .black)
+                .foregroundColor(.black)
                 .frame(width: 32, height: 32)
-                .background(Circle().fill(hasHardwareNotch ? Color.black.opacity(0.5) : neonGreen))
-                .shadow(color: hasHardwareNotch ? .clear : neonGreen.opacity(0.45), radius: 6)
+                .background(Circle().fill(neonGreen))
+                .shadow(color: neonGreen.opacity(0.45), radius: 6)
         }
         .buttonStyle(.plain)
-        .disabled(hasHardwareNotch)
         .accessibilityLabel(label)
-        .accessibilityHint(hasHardwareNotch ? "Disabled: hardware notch height is fixed" : "Hold Command for a larger step, hold Option for a finer step.")
+        .accessibilityHint("Hold Command for a larger step, hold Option for a finer step.")
     }
 
     private func applyHeightStep(direction: Int) {

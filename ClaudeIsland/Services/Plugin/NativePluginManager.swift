@@ -10,6 +10,24 @@ import AppKit
 import Combine
 import OSLog
 
+/// Host-side debug log for panel-size hint resolution. Writes a single
+/// line to /tmp/mio-host-debug.log each time preferredPanelSize is
+/// evaluated. Strip before release.
+private func debugLogHostPanel(_ msg: String) {
+    let line = "[\(ISO8601DateFormatter().string(from: Date()))] \(msg)\n"
+    let path = "/tmp/mio-host-debug.log"
+    if let data = line.data(using: .utf8) {
+        if FileManager.default.fileExists(atPath: path),
+           let h = try? FileHandle(forWritingTo: URL(fileURLWithPath: path)) {
+            try? h.seekToEnd()
+            try? h.write(contentsOf: data)
+            try? h.close()
+        } else {
+            try? data.write(to: URL(fileURLWithPath: path))
+        }
+    }
+}
+
 @MainActor
 final class NativePluginManager: ObservableObject {
     static let shared = NativePluginManager()
@@ -87,31 +105,55 @@ final class NativePluginManager: ObservableObject {
         /// Returns nil when neither path yields a usable size, letting the
         /// host fall back to its default `(min(screenW*0.48, 620), min(screenH*0.78, 780))`.
         var preferredPanelSize: CGSize? {
+            let line = "[preferredPanelSize] id=\(id) bundle=\(bundle.bundlePath)"
+            debugLogHostPanel(line)
+
             // Path 1: runtime selector
             let sel = NSSelectorFromString("preferredPanelSize")
             if instance.responds(to: sel),
                let raw = instance.perform(sel)?.takeUnretainedValue() as? NSValue {
                 let size = raw.sizeValue
+                debugLogHostPanel("  path1 objc sel returned \(size)")
                 if size.width >= 280, size.width <= 1200,
-                   size.height >= 180, size.height <= 900 {
+                   size.height >= 120, size.height <= 900 {
                     return CGSize(width: size.width, height: size.height)
                 }
             }
 
             // Path 2: Info.plist — only valid for external bundles
-            guard bundle !== Bundle.main,
-                  let info = bundle.infoDictionary,
-                  let rawW = (info["MioPluginPreferredWidth"] as? NSNumber)?.doubleValue,
-                  let rawH = (info["MioPluginPreferredHeight"] as? NSNumber)?.doubleValue
-            else {
+            let isExternal = bundle !== Bundle.main
+            let info = bundle.infoDictionary
+
+            // Plist values can come back as NSNumber, Int, or Double via
+            // Swift's Foundation bridging — depends on macOS version +
+            // Swift compiler. Try all three fallbacks so the cast never
+            // fails silently.
+            let rawWAny = info?["MioPluginPreferredWidth"]
+            let rawHAny = info?["MioPluginPreferredHeight"]
+            let rawW: Double? = {
+                if let n = rawWAny as? NSNumber { return n.doubleValue }
+                if let i = rawWAny as? Int { return Double(i) }
+                if let d = rawWAny as? Double { return d }
+                return nil
+            }()
+            let rawH: Double? = {
+                if let n = rawHAny as? NSNumber { return n.doubleValue }
+                if let i = rawHAny as? Int { return Double(i) }
+                if let d = rawHAny as? Double { return d }
+                return nil
+            }()
+            debugLogHostPanel("  path2 external=\(isExternal) rawW=\(String(describing: rawWAny)) rawH=\(String(describing: rawHAny)) W=\(rawW ?? -1) H=\(rawH ?? -1)")
+
+            guard isExternal, let w = rawW, let h = rawH else {
+                debugLogHostPanel("  → nil (external=\(isExternal) W=\(rawW == nil) H=\(rawH == nil))")
                 return nil
             }
-            // Sanity clamp: reject absurdly small (< mini notch size) or
-            // absurdly large (bigger than full-HD) hints.
-            guard rawW >= 280, rawW <= 1200, rawH >= 180, rawH <= 900 else {
+            guard w >= 280, w <= 1200, h >= 120, h <= 900 else {
+                debugLogHostPanel("  → nil (out of range w=\(w) h=\(h))")
                 return nil
             }
-            return CGSize(width: rawW, height: rawH)
+            debugLogHostPanel("  → \(w)x\(h)")
+            return CGSize(width: w, height: h)
         }
     }
 

@@ -140,13 +140,14 @@ struct NotchView: View {
     // MARK: - Sizing
 
     private var closedNotchSize: CGSize {
+        // Always honor the user's notchHeight — even on hardware-
+        // notched MacBooks. The software Mio Island can be taller or
+        // shorter than the physical camera cutout; previously this
+        // branch pinned to viewModel.deviceNotchRect.height, which
+        // was captured at launch and never updated, so the live edit
+        // height buttons appeared to do nothing on MacBook.
         let geo = notchStore.customization.geometry(for: viewModel.screenID)
-        let height: CGFloat
-        if viewModel.hasPhysicalNotch {
-            height = viewModel.deviceNotchRect.height
-        } else {
-            height = NotchHardwareDetector.clampedHeight(geo.notchHeight)
-        }
+        let height = NotchHardwareDetector.clampedHeight(geo.notchHeight)
         return CGSize(
             width: viewModel.deviceNotchRect.width,
             height: height
