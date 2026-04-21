@@ -148,6 +148,17 @@ actor SessionStore {
         let sessionId = event.sessionId
         let isNewSession = sessions[sessionId] == nil
         DebugLogger.log("Hook", "\(event.event) status=\(event.status) sid=\(sessionId.prefix(8)) new=\(isNewSession)")
+
+        // Q2: Codex TUI 每次启动都生成一个新 UUIDv7 作为 session_id，matcher
+        // `startup|resume` 让每次 TUI 打开都触发一次 SessionStart。如果据此建
+        // session 条目，用户每开一次 Codex TUI（哪怕还没输入任何 prompt）都会
+        // 多一条空白会话。跳过 Codex 的首次 SessionStart，等真正的
+        // UserPromptSubmit 到来再 createSession。Claude 行为不受影响。
+        if isNewSession && event.source == "codex" && event.event == "SessionStart" {
+            DebugLogger.log("Hook", "skipped Codex SessionStart — wait for UserPromptSubmit")
+            return
+        }
+
         var session = sessions[sessionId] ?? createSession(from: event)
 
         session.pid = event.pid
