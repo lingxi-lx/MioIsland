@@ -17,7 +17,10 @@ import os.log
 
 @MainActor
 enum PermissionAlertNotifier {
-    private static let logger = Logger(subsystem: "com.codeisland", category: "PermissionAlert")
+    // Logger is Sendable — mark nonisolated so Sendable completion
+    // closures (e.g. UNUserNotificationCenter.add) can reference it
+    // without compiler warnings.
+    nonisolated private static let logger = Logger(subsystem: "com.codeisland", category: "PermissionAlert")
 
     static let notificationCategory = "MIO_PERMISSION_LOST"
     static let openSettingsAction = "OPEN_SETTINGS"
@@ -31,14 +34,15 @@ enum PermissionAlertNotifier {
     // MARK: - 入口
 
     /// AppDelegate 启动时调一次。
-    /// 内部注册监听 app 激活事件 + 启动后做一次延迟检测。
+    ///
+    /// 注册 app 激活监听 + 立即执行一次检测。不再用 5s 硬延迟:
+    /// AXIsProcessTrusted() 和 UserDefaults 都是同步即可用的 API，
+    /// 没有需要等待的 async 初始化。didBecomeActive 观察者会在
+    /// 启动后自动 fire 一次,和这里的立即检测是双保险;同值写回
+    /// UserDefaults 是幂等的,不会重复发通知。
     static func installAndCheck() {
         installActivationObserver()
-        // 启动延迟：给 WindowManager 初始化留时间
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            evaluateAndNotify(reason: "launch")
-        }
+        evaluateAndNotify(reason: "launch")
     }
 
     private static func installActivationObserver() {
@@ -163,7 +167,7 @@ enum PermissionAlertNotifier {
     static func handleResponse(actionIdentifier: String) {
         switch actionIdentifier {
         case repairAction:
-            TCCPermissionFixer.resetAndRequest(.accessibility)
+            Task { await TCCPermissionFixer.resetAndRequest(.accessibility) }
             SystemSettingsWindow.shared.show(initialTab: .cmuxConnection)
         case openSettingsAction, UNNotificationDefaultActionIdentifier:
             SystemSettingsWindow.shared.show(initialTab: .cmuxConnection)

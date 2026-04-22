@@ -53,13 +53,23 @@ extension UpdaterManager: SPUUpdaterDelegate {
         let ns = error as NSError
         Self.logger.error("Sparkle update error domain=\(ns.domain, privacy: .public) code=\(ns.code) desc=\(ns.localizedDescription, privacy: .public)")
 
-        // 排除用户主动取消 / 没有新版本这种正常情况
-        let ignoreCodes: Set<Int> = [
-            1001, // SUNoUpdateError（没有更新，正常）
-            4009, // SUInstallationCancelledError（用户取消安装）
-            4001, // 用户取消下载
+        // 白名单策略：只在"明确需要用户手动介入"的错误上弹 fallback。
+        // 未知错误一律安静处理，避免普通网络抖动 / transient failure 误弹
+        // alert 打扰用户。
+        //
+        // 命中 alert 的场景：
+        //  - EdDSA 签名验证失败（公钥轮换或 DMG 签错了，用户机器无法自动升）
+        //  - 下载的安装包完整性校验失败
+        //  - 已下载但安装失败（Gatekeeper 拦截等）
+        let showAlertCodes: Set<Int> = [
+            2001, // SUSignatureError
+            2002, // SUValidationError（DSA / EdDSA mismatch）
+            3000, // SUInstallationError
+            3005, // SUInstallationAuthorizeLaterError
+            4002, // Downloaded file missing / invalid
         ]
-        if ignoreCodes.contains(ns.code) { return }
+        let isSparkleDomain = ns.domain == "SUSparkleErrorDomain"
+        guard isSparkleDomain, showAlertCodes.contains(ns.code) else { return }
 
         showFallbackAlert()
     }

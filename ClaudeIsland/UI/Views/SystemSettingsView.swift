@@ -1019,11 +1019,14 @@ private struct SettingsAccessibilityRow: View {
 
     private func repair() {
         isRepairing = true
-        TCCPermissionFixer.resetAndRequest(.accessibility)
-        // 授权是异步的，短暂轮询后刷新状态
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            isGranted = AXIsProcessTrusted()
-            isRepairing = false
+        Task {
+            await TCCPermissionFixer.resetAndRequest(.accessibility)
+            // 授权是异步的，短暂等待后刷新状态
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            await MainActor.run {
+                isGranted = AXIsProcessTrusted()
+                isRepairing = false
+            }
         }
     }
 }
@@ -1532,8 +1535,8 @@ private struct CmuxConnectionTab: View {
     @ViewBuilder
     private func repairButton(label: String, service: TCCService) -> some View {
         Button {
-            TCCPermissionFixer.resetAndRequest(service)
             Task {
+                await TCCPermissionFixer.resetAndRequest(service)
                 try? await Task.sleep(nanoseconds: 1_200_000_000)
                 await refresh()
             }
