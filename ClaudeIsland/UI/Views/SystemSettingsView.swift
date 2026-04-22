@@ -1011,12 +1011,11 @@ private struct SettingsAccessibilityRow: View {
                     } label: {
                         Text(isRepairing ? L10n.repairing : L10n.repairPermission)
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(.black)
+                            .foregroundColor(Theme.backgroundInk)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
                             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.accent))
                     }
-<<<<<<< Updated upstream
                     .buttonStyle(.plain)
                     .disabled(isRepairing)
 
@@ -1034,15 +1033,6 @@ private struct SettingsAccessibilityRow: View {
                     }
                     .buttonStyle(.plain)
                     .help(L10n.openAccessibilitySettings)
-=======
-                } label: {
-                    Text(L10n.enable)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Theme.backgroundInk)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.accent))
->>>>>>> Stashed changes
                 }
             }
         }
